@@ -178,7 +178,10 @@ const Register = () => {
                     value={formData.role}
                     placeholder="Selecciona un rol"
                     onIonChange={(e) =>
-                      updateField("role", String(e.detail.value ?? ""))
+                      updateField(
+                        "role",
+                        String(e.detail.value ?? "") as RegisterRequest["role"],
+                      )
                     }
                   >
                     <IonSelectOption value="ADMINISTRADOR">

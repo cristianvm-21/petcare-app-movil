@@ -12,6 +12,7 @@ import {
 } from "@ionic/react";
 import { eye, eyeOff } from "ionicons/icons";
 import { Link, useHistory } from "react-router-dom";
+import { DEFAULT_PRIVATE_ROUTE } from "../../auth/session";
 import { login } from "../../services/authService";
 import "./Login.css";
 
@@ -37,7 +38,7 @@ const Login = () => {
 
       const response = await login(username, password);
       console.log("Login correcto:", response);
-      history.replace("/home");
+      history.replace(DEFAULT_PRIVATE_ROUTE);
     } catch (err) {
       console.error("Error al iniciar sesión:", err);
       setError("No se pudo iniciar sesión. Verifica tus credenciales.");
@@ -81,7 +82,7 @@ const Login = () => {
                     }
                     onClick={() => setShowPassword((current) => !current)}
                   >
-                    <IonIcon icon={showPassword ? eye : eyeOff} />
+                    <IonIcon icon={showPassword ? eyeOff : eye} />
                   </IonButton>
                 </IonItem>
               </div>

@@ -1,7 +1,8 @@
 import { Redirect, Route } from 'react-router-dom';
 import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import Home from './pages/home/Home';
+import { DEFAULT_PRIVATE_ROUTE, isAuthenticated } from './auth/session';
+import AppTabs from './layouts/AppTabs';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -32,7 +33,6 @@ import '@ionic/react/css/palettes/dark.system.css';
 
 /* Theme variables */
 import './theme/variables.css';
-import New from './pages/New';
 import Login from './pages/login/Login';
 import Register from './pages/register/Register';
 
@@ -42,18 +42,42 @@ const App: React.FC = () => (
   <IonApp>
     <IonReactRouter>
       <IonRouterOutlet>
-        <Route exact path="/home">
-          <Home />
-        </Route>
-        <Route exact path="/">
-          <Redirect to="/home" />
-        </Route>
-        <Route path="/login">
-          <Login></Login>
-        </Route>
-        <Route path="/register">
-          <Register></Register>
-        </Route>
+        <Route
+          exact
+          path="/"
+          render={() => (
+            <Redirect to={isAuthenticated() ? DEFAULT_PRIVATE_ROUTE : "/login"} />
+          )}
+        />
+        <Route
+          exact
+          path="/login"
+          render={() =>
+            isAuthenticated() ? <Redirect to={DEFAULT_PRIVATE_ROUTE} /> : <Login />
+          }
+        />
+        <Route
+          exact
+          path="/register"
+          render={() =>
+            isAuthenticated() ? (
+              <Redirect to={DEFAULT_PRIVATE_ROUTE} />
+            ) : (
+              <Register />
+            )
+          }
+        />
+        <Route
+          path="/app"
+          render={() =>
+            isAuthenticated() ? <AppTabs /> : <Redirect to="/login" />
+          }
+        />
+        <Route
+          render={() => (
+            <Redirect to={isAuthenticated() ? DEFAULT_PRIVATE_ROUTE : "/login"} />
+          )}
+        />
       </IonRouterOutlet>
     </IonReactRouter>
   </IonApp>

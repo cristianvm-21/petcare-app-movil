@@ -1,3 +1,9 @@
+export type UserRole =
+  | "ADMINISTRADOR"
+  | "VETERINARIO"
+  | "ASISTENTE"
+  | "DUENO";
+
 // -- LOGIN
 export interface LoginRequest {
   username: string;
@@ -19,7 +25,7 @@ export interface RegisterRequest {
   lastName: string;
   email: string;
   phone: string;
-  role: string;
+  role: UserRole | "";
 }
 
 export interface RegisterResponse {

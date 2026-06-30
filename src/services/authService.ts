@@ -1,5 +1,6 @@
 /* => Aquí manejas qué hacer con el token */
 
+import { normalizeUserRole } from "../auth/session";
 import { loginRequest } from "../api/auth";
 import { registerRequest } from "../api/auth";
 import { RegisterRequest } from "../types/authType";
@@ -12,7 +13,8 @@ export async function login(username: string, password: string) {
     localStorage.setItem("token", responseData.token);
     localStorage.setItem("refreshToken", responseData.refreshToken);
     localStorage.setItem("username", responseData.username);
-    localStorage.setItem("role", responseData.role);
+    const normalizedRole = normalizeUserRole(responseData.role);
+    localStorage.setItem("role", normalizedRole ?? responseData.role);
 
     return responseData;
 }
