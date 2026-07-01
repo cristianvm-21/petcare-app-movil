@@ -15,7 +15,9 @@ import { Redirect, Route, useHistory, useLocation } from "react-router-dom";
 import { getCurrentUserRole } from "../auth/session";
 import { getDefaultPrivateRoute, getTabsForRole, privateRoutes } from "../navigation/privateRoutes";
 import Home from "../pages/home/Home";
-import Pets from "../pages/Pets/Pets";
+import Owners from "../pages/owners/Owners";
+import Pets from "../pages/pets/Pets";
+import Users from "../pages/users/Users";
 import Services from "../pages/VetServices/VetServices";
 import SectionPlaceholder from "../pages/shared/SectionPlaceholder";
 import "./AppTabs.css";
@@ -83,6 +85,10 @@ const AppTabs: React.FC = () => {
                   <Home />
                 ) : route.key === "services" ? (
                   <Services />
+                ) : route.key === "users" ? (
+                  <Users />
+                ) : route.key === "owners" ? (
+                  <Owners />
                 ) : route.key === "patients" || route.key === "owner-pets" ? (
                   <Pets />
                 ) : (

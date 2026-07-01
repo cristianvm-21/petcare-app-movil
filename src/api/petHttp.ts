@@ -3,6 +3,8 @@ import { PageRequest } from "../contracts/pageRequestContract";
 import {
   CreatePetRequest,
   PetItem,
+  PetOwnerPrincipalResponse,
+  PetsByOwnerResponse,
   PetResponse,
   UpdatePetRequest,
 } from "../contracts/petContract";
@@ -16,6 +18,25 @@ export async function httpGetPetAPI() {
   const response = await springbootApi.get<PetResponse>("mascotas", {
     params: petPageRequest,
   });
+  return response.data;
+}
+
+export async function httpGetPetByIdAPI(id: number) {
+  const response = await springbootApi.get<PetItem>(`mascotas/${id}`);
+  return response.data;
+}
+
+export async function httpGetPetsByOwnerIdAPI(ownerId: number) {
+  const response = await springbootApi.get<PetsByOwnerResponse>(
+    `mascotas/dueno/${ownerId}`,
+  );
+  return response.data;
+}
+
+export async function httpGetPetOwnerPrincipalAPI(id: number) {
+  const response = await springbootApi.get<PetOwnerPrincipalResponse>(
+    `mascotas/${id}/dueno-principal`,
+  );
   return response.data;
 }
 

@@ -1,3 +1,5 @@
+import { OwnerItem } from "./ownerContract";
+
 export interface PetItem {
   id: number;
   nombre: string;
@@ -41,3 +43,7 @@ export interface PetResponse {
   content: PetItem[];
   page?: PetPageInfo;
 }
+
+export type PetsByOwnerResponse = PetResponse | PetItem[];
+
+export type PetOwnerPrincipalResponse = OwnerItem;

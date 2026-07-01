@@ -25,14 +25,19 @@ import {
   createPet,
   deletePet,
   findAllPets,
+  findPetById,
+  findPetOwnerPrincipal,
+  findPetsByOwnerId,
   togglePetStatus,
   updatePet,
-} from "../../services/petCatalogService";
+} from "../../services/petService";
 import {
   CreatePetRequest,
   PetItem,
   UpdatePetRequest,
 } from "../../contracts/petContract";
+import { OwnerItem } from "../../contracts/ownerContract";
+import { findAllOwners } from "../../services/ownerService";
 import "./Pets.css";
 
 const initialFormData: CreatePetRequest = {
@@ -50,11 +55,16 @@ const initialFormData: CreatePetRequest = {
   ownerRelation: "",
 };
 
+const ownerRelationOptions = ["Propietario", "Encargado"] as const;
+
 const Pets: React.FC = () => {
   const [pets, setPets] = useState<PetItem[]>([]);
+  const [owners, setOwners] = useState<OwnerItem[]>([]);
   const [query, setQuery] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("0");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [isLoading, setIsLoading] = useState(true);
+  const [isOwnersLoading, setIsOwnersLoading] = useState(false);
   const [error, setError] = useState("");
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -63,12 +73,18 @@ const Pets: React.FC = () => {
   const [formError, setFormError] = useState("");
   const [formData, setFormData] = useState<CreatePetRequest>(initialFormData);
 
-  async function loadPets() {
+  function getOwnerFullName(owner: OwnerItem) {
+    return `${owner.nombre} ${owner.apellido}`.trim();
+  }
+
+  async function loadPets(selectedOwnerId?: number) {
     try {
       setIsLoading(true);
       setError("");
 
-      const petsData = await findAllPets();
+      const petsData = selectedOwnerId && selectedOwnerId > 0
+        ? await findPetsByOwnerId(selectedOwnerId)
+        : await findAllPets();
       setPets(petsData);
     } catch (err) {
       console.error("No se pudieron cargar las mascotas:", err);
@@ -78,9 +94,28 @@ const Pets: React.FC = () => {
     }
   }
 
+  async function loadOwners() {
+    try {
+      setIsOwnersLoading(true);
+
+      const ownersData = await findAllOwners();
+      setOwners(ownersData.filter((owner) => owner.activo));
+    } catch (err) {
+      console.error("No se pudieron cargar los dueños:", err);
+      setError("No se pudieron cargar los dueños para el filtro.");
+    } finally {
+      setIsOwnersLoading(false);
+    }
+  }
+
   useEffect(() => {
-    loadPets();
+    loadOwners();
   }, []);
+
+  useEffect(() => {
+    const selectedOwnerId = Number(ownerFilter);
+    loadPets(selectedOwnerId > 0 ? selectedOwnerId : undefined);
+  }, [ownerFilter]);
 
   function updateField<K extends keyof CreatePetRequest>(
     field: K,
@@ -135,24 +170,36 @@ const Pets: React.FC = () => {
     }
   }
 
-  function handleStartEdit(pet: PetItem) {
-    setEditingPetId(pet.id);
-    setFormError("");
-    setFormData({
-      name: pet.nombre,
-      species: pet.especie,
-      breed: pet.raza,
-      gender: pet.sexo,
-      birthDate: pet.fechaNacimiento,
-      microchip: pet.microchip,
-      reproductiveCondition: pet.condicionReproductiva,
-      allergies: pet.alergias,
-      chronicDiseases: pet.enfermedadesCronicas,
-      medicalAlerts: pet.alertasMedicas,
-      ownerId: 1,
-      ownerRelation: "",
-    });
-    setIsFormVisible(true);
+  async function handleStartEdit(pet: PetItem) {
+    try {
+      setIsSubmittingAction(pet.id);
+      setFormError("");
+
+      const petDetail = await findPetById(pet.id);
+      const ownerPrincipal = await findPetOwnerPrincipal(pet.id);
+
+      setEditingPetId(pet.id);
+      setFormData({
+        name: petDetail.nombre,
+        species: petDetail.especie,
+        breed: petDetail.raza,
+        gender: petDetail.sexo,
+        birthDate: petDetail.fechaNacimiento,
+        microchip: petDetail.microchip,
+        reproductiveCondition: petDetail.condicionReproductiva,
+        allergies: petDetail.alergias,
+        chronicDiseases: petDetail.enfermedadesCronicas,
+        medicalAlerts: petDetail.alertasMedicas,
+        ownerId: ownerPrincipal.id,
+        ownerRelation: "",
+      });
+      setIsFormVisible(true);
+    } catch (err) {
+      console.error("No se pudo cargar el detalle de la mascota:", err);
+      setError("No se pudo cargar el detalle de la mascota para editar.");
+    } finally {
+      setIsSubmittingAction(null);
+    }
   }
 
   async function handleToggleStatus(pet: PetItem) {
@@ -339,51 +386,65 @@ const Pets: React.FC = () => {
                     }
                   />
 
-                  <IonSelect
-                    className="pets-field pets-field--select"
-                    interface="popover"
-                    value={formData.reproductiveCondition}
-                    placeholder="Condición reproductiva"
-                    onIonChange={(event) =>
-                      updateField(
-                        "reproductiveCondition",
-                        String(event.detail.value ?? ""),
-                      )
-                    }
-                  >
-                    <IonSelectOption value="ENTERO">ENTERO</IonSelectOption>
-                    <IonSelectOption value="ESTERILIZADO">
-                      ESTERILIZADO
-                    </IonSelectOption>
-                    <IonSelectOption value="CASTRADO">CASTRADO</IonSelectOption>
-                  </IonSelect>
+                  <div className="pets-form__triple-row">
+                    <IonSelect
+                      className="pets-field pets-field--select pets-field--select-wide"
+                      interface="popover"
+                      value={formData.ownerId || undefined}
+                      placeholder={
+                        isOwnersLoading
+                          ? "Cargando dueños..."
+                          : "Selecciona un dueño"
+                      }
+                      onIonChange={(event) =>
+                        updateField("ownerId", Number(event.detail.value ?? 0))
+                      }
+                    >
+                      {owners.map((owner) => (
+                        <IonSelectOption key={owner.id} value={owner.id}>
+                          {getOwnerFullName(owner)}
+                        </IonSelectOption>
+                      ))}
+                    </IonSelect>
 
-                  <IonInput
-                    className="pets-field"
-                    fill="outline"
-                    label="ID del dueño"
-                    labelPlacement="stacked"
-                    type="number"
-                    min="1"
-                    value={String(formData.ownerId || "")}
-                    onIonInput={(event) =>
-                      updateField("ownerId", Number(event.detail.value ?? 0))
-                    }
-                  />
+                    <IonSelect
+                      className="pets-field pets-field--select pets-field--select-wide"
+                      interface="popover"
+                      value={formData.ownerRelation}
+                      placeholder="Relación con el dueño"
+                      onIonChange={(event) =>
+                        updateField(
+                          "ownerRelation",
+                          String(event.detail.value ?? ""),
+                        )
+                      }
+                    >
+                      {ownerRelationOptions.map((relation) => (
+                        <IonSelectOption key={relation} value={relation}>
+                          {relation}
+                        </IonSelectOption>
+                      ))}
+                    </IonSelect>
 
-                  <IonInput
-                    className="pets-field"
-                    fill="outline"
-                    label="Relación con el dueño"
-                    labelPlacement="stacked"
-                    value={formData.ownerRelation}
-                    onIonInput={(event) =>
-                      updateField(
-                        "ownerRelation",
-                        String(event.detail.value ?? ""),
-                      )
-                    }
-                  />
+                    <IonSelect
+                      className="pets-field pets-field--select pets-field--select-wide"
+                      interface="popover"
+                      value={formData.reproductiveCondition}
+                      placeholder="Condición reproductiva"
+                      onIonChange={(event) =>
+                        updateField(
+                          "reproductiveCondition",
+                          String(event.detail.value ?? ""),
+                        )
+                      }
+                    >
+                      <IonSelectOption value="ENTERO">ENTERO</IonSelectOption>
+                      <IonSelectOption value="ESTERILIZADO">
+                        ESTERILIZADO
+                      </IonSelectOption>
+                      <IonSelectOption value="CASTRADO">CASTRADO</IonSelectOption>
+                    </IonSelect>
+                  </div>
                 </div>
 
                 <IonTextarea
@@ -473,6 +534,22 @@ const Pets: React.FC = () => {
               <IonSelect
                 className="pets-field pets-field--select"
                 interface="popover"
+                value={ownerFilter}
+                onIonChange={(event) =>
+                  setOwnerFilter(String(event.detail.value ?? "0"))
+                }
+              >
+                <IonSelectOption value="0">Todos los dueños</IonSelectOption>
+                {owners.map((owner) => (
+                  <IonSelectOption key={owner.id} value={String(owner.id)}>
+                    {getOwnerFullName(owner)}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+
+              <IonSelect
+                className="pets-field pets-field--select"
+                interface="popover"
                 value={statusFilter}
                 onIonChange={(event) =>
                   setStatusFilter(String(event.detail.value ?? "todos"))
@@ -506,6 +583,7 @@ const Pets: React.FC = () => {
                         <th>Especie</th>
                         <th>Raza</th>
                         <th>Sexo</th>
+                        <th>Condición Reproductiva</th>
                         <th>Microchip</th>
                         <th>Estado</th>
                         <th>Acciones</th>
@@ -519,6 +597,7 @@ const Pets: React.FC = () => {
                           <td>{pet.especie}</td>
                           <td>{pet.raza}</td>
                           <td>{pet.sexo}</td>
+                          <td>{pet.condicionReproductiva}</td>
                           <td>{pet.microchip || "Sin registro"}</td>
                           <td>
                             <span
@@ -581,7 +660,7 @@ const Pets: React.FC = () => {
                       </p>
 
                       <div className="pets-mobile-card__meta">
-                        <span>{pet.sexo}</span>
+                        <span>{`${pet.sexo} · ${pet.condicionReproductiva}`}</span>
                         <strong>{pet.microchip || "Sin microchip"}</strong>
                       </div>
 
