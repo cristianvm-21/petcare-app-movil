@@ -8,7 +8,9 @@ export interface VetServiceItem {
 }
 
 export interface VetServiceResponse {
-  content?: VetServiceItem[];
-  data?: VetServiceItem[];
-  servicios?: VetServiceItem[];
+  content: VetServiceItem[];
+  totalElements?: number;
+  totalPages?: number;
+  size?: number;
+  number?: number;
 }

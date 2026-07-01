@@ -1,4 +1,4 @@
-export interface VetServicePageRequest {
+export interface PageRequest {
   page: number;
   size: number;
 }

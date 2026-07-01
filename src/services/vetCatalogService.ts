@@ -1,27 +1,7 @@
 import { httpGetVetServicesAPI } from "../api/vetServicesHttp";
-import { VetServiceItem, VetServiceResponse } from "../contracts/vetServiceContract";
-
-function normalizeServices(payload: VetServiceResponse | VetServiceItem[]) {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  if (Array.isArray(payload.content)) {
-    return payload.content;
-  }
-
-  if (Array.isArray(payload.data)) {
-    return payload.data;
-  }
-
-  if (Array.isArray(payload.servicios)) {
-    return payload.servicios;
-  }
-
-  return [];
-}
+import { VetServiceResponse } from "../contracts/vetServiceContract";
 
 export async function findAllVetServices() {
-  const response = await httpGetVetServicesAPI();
-  return normalizeServices(response);
+  const response: VetServiceResponse = await httpGetVetServicesAPI();
+  return response.content ?? [];
 }

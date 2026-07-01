@@ -1,19 +1,18 @@
 /* => Aquí solo haces la petición HTTP al backend. */
 import { springbootApi } from "./axiosHttp";
-import { VetServicePageRequest } from "../contracts/pageRequestContract";
+import { PageRequest } from "../contracts/PageRequestContract"
 import {
-    VetServiceItem,
     VetServiceResponse,
 } from "../contracts/vetServiceContract";
 
-const defaultVetServicesPageRequest: VetServicePageRequest = {
+const VetServicePageRequest: PageRequest = {
     page: 0,
     size: 100,
 };
 
 export async function httpGetVetServicesAPI() {
-    const response = await springbootApi.get<VetServiceResponse | VetServiceItem[]>("servicios", {
-        params: defaultVetServicesPageRequest,
+    const response = await springbootApi.get<VetServiceResponse>("servicios", {
+        params: VetServicePageRequest,
     });
     return response.data;
 }

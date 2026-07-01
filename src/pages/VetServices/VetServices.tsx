@@ -23,36 +23,8 @@ import { VetServiceItem } from "../../contracts/vetServiceContract";
 import { formatCurrency } from "../../utils/formatCurrency";
 import "./VetServices.css";
 
-const fallbackServices: VetServiceItem[] = [
-  {
-    id: 1,
-    nombre: "Consulta General",
-    descripcion: "Revisión médica general para la mascota",
-    duracionMinutos: 30,
-    costoReferencial: 80,
-    activo: true,
-  },
-  {
-    id: 2,
-    nombre: "Vacunación",
-    descripcion: "Aplicación de vacunas según calendario",
-    duracionMinutos: 20,
-    costoReferencial: 50,
-    activo: true,
-  },
-  {
-    id: 3,
-    nombre: "Desparasitación",
-    descripcion: "Tratamiento interno y externo preventivo",
-    duracionMinutos: 15,
-    costoReferencial: 30,
-    activo: true,
-  },
-  
-];
-
-const vetServices: React.FC = () => {
-  const [vetServices, setVetServices] = useState<VetServiceItem[]>([]);
+const VetServices: React.FC = () => {
+  const [services, setServices] = useState<VetServiceItem[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [isLoading, setIsLoading] = useState(true);
@@ -65,26 +37,22 @@ const vetServices: React.FC = () => {
         setError("");
 
         const vetServicesData = await findAllVetServices();
-
-        if (vetServicesData.length > 0) {
-          setVetServices(vetServicesData);
-        }
+        setServices(vetServicesData);
       } catch (err) {
         console.error("No se pudieron cargar los servicios:", err);
-
-        setError("No se pudieron cargar los servicios del backend. Se muestran datos de ejemplo.");
-
+        setError("No se pudieron cargar los servicios del backend.");
       } finally {
         setIsLoading(false);
       }
     }
 
+    loadServices();
   }, []);
 
   const filteredServices = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase();
 
-    return vetServices.filter((service) => {
+    return services.filter((service) => {
       const matchesQuery =
         loweredQuery.length === 0 ||
         service.nombre.toLowerCase().includes(loweredQuery) ||
@@ -97,7 +65,7 @@ const vetServices: React.FC = () => {
 
       return matchesQuery && matchesStatus;
     });
-  }, [query, vetServices, statusFilter]);
+  }, [query, services, statusFilter]);
 
   return (
     <IonPage>
@@ -271,4 +239,4 @@ const vetServices: React.FC = () => {
   );
 };
 
-export default vetServices;
+export default VetServices;
