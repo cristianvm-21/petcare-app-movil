@@ -7,6 +7,13 @@ export interface VetServiceItem {
   activo: boolean;
 }
 
+export interface CreateVetServiceRequest {
+  name: string;
+  description: string;
+  durationMinutes: number;
+  referentialCost: number;
+}
+
 export interface VetServiceResponse {
   content: VetServiceItem[];
   totalElements?: number;
