@@ -3,6 +3,7 @@ import { springbootApi } from "./axiosHttp";
 import { PageRequest } from "../contracts/PageRequestContract";
 import {
     CreateVetServiceRequest,
+    UpdateVetServiceRequest,
     VetServiceItem,
     VetServiceResponse,
 } from "../contracts/vetServiceContract";
@@ -24,4 +25,21 @@ export async function httpPostVetServiceAPI(
 ) {
     const response = await springbootApi.post<VetServiceItem>("servicios", payload);
     return response.data;
+}
+
+export async function httpPutVetServiceAPI(
+    id: number,
+    payload: UpdateVetServiceRequest,
+) {
+    const response = await springbootApi.put<VetServiceItem>(`servicios/${id}`, payload);
+    return response.data;
+}
+
+export async function httpPatchVetServiceAPI(id: number) {
+    const response = await springbootApi.patch<VetServiceItem>(`servicios/${id}/toggle`);
+    return response.data;
+}
+
+export async function httpDeleteVetServiceAPI(id: number) {
+    await springbootApi.delete(`servicios/${id}`);
 }

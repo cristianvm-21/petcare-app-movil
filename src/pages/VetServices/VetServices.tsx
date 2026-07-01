@@ -16,16 +16,21 @@ import {
   listOutline,
   pauseOutline,
   pencilOutline,
+  playOutline,
   trashOutline,
 } from "ionicons/icons";
 import React, { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader/AppHeader";
 import {
   createVetService,
+  deleteVetService,
   findAllVetServices,
+  toggleVetServiceStatus,
+  updateVetService,
 } from "../../services/vetCatalogService";
 import {
   CreateVetServiceRequest,
+  UpdateVetServiceRequest,
   VetServiceItem,
 } from "../../contracts/vetServiceContract";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -46,6 +51,8 @@ const VetServices: React.FC = () => {
   const [error, setError] = useState("");
   const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
+  const [isSubmittingAction, setIsSubmittingAction] = useState<number | null>(null);
   const [formError, setFormError] = useState("");
   const [formData, setFormData] =
     useState<CreateVetServiceRequest>(initialFormData);
@@ -98,15 +105,67 @@ const VetServices: React.FC = () => {
       setIsSaving(true);
       setFormError("");
 
-      await createVetService(formData);
+      if (editingServiceId !== null) {
+        await updateVetService(editingServiceId, formData as UpdateVetServiceRequest);
+      } else {
+        await createVetService(formData);
+      }
+
       setFormData(initialFormData);
       setIsCreateFormVisible(false);
+      setEditingServiceId(null);
       await loadServices();
     } catch (err) {
-      console.error("No se pudo registrar el servicio:", err);
-      setFormError("No se pudo registrar el servicio. Inténtalo nuevamente.");
+      console.error("No se pudo guardar el servicio:", err);
+      setFormError("No se pudo guardar el servicio. Inténtalo nuevamente.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  function handleStartEdit(service: VetServiceItem) {
+    setEditingServiceId(service.id);
+    setFormError("");
+    setFormData({
+      name: service.nombre,
+      description: service.descripcion,
+      durationMinutes: service.duracionMinutos,
+      referentialCost: service.costoReferencial,
+    });
+    setIsCreateFormVisible(true);
+  }
+
+  async function handleToggleStatus(service: VetServiceItem) {
+    try {
+      setIsSubmittingAction(service.id);
+      await toggleVetServiceStatus(service.id);
+      await loadServices();
+    } catch (err) {
+      console.error("No se pudo cambiar el estado del servicio:", err);
+      setError("No se pudo cambiar el estado del servicio.");
+    } finally {
+      setIsSubmittingAction(null);
+    }
+  }
+
+  async function handleDeleteService(service: VetServiceItem) {
+    const confirmed = window.confirm(
+      `¿Deseas eliminar el servicio "${service.nombre}"?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsSubmittingAction(service.id);
+      await deleteVetService(service.id);
+      await loadServices();
+    } catch (err) {
+      console.error("No se pudo eliminar el servicio:", err);
+      setError("No se pudo eliminar el servicio.");
+    } finally {
+      setIsSubmittingAction(null);
     }
   }
 
@@ -146,6 +205,8 @@ const VetServices: React.FC = () => {
               className="services-hero__cta"
               onClick={() => {
                 setFormError("");
+                setEditingServiceId(null);
+                setFormData(initialFormData);
                 setIsCreateFormVisible((current) => !current);
               }}
             >
@@ -158,8 +219,16 @@ const VetServices: React.FC = () => {
             <section className="services-create-card">
               <div className="services-create-card__header">
                 <div>
-                  <h2>Registrar nuevo servicio</h2>
-                  <p>Completa los campos para guardar un servicio veterinario.</p>
+                  <h2>
+                    {editingServiceId !== null
+                      ? "Editar servicio"
+                      : "Registrar nuevo servicio"}
+                  </h2>
+                  <p>
+                    {editingServiceId !== null
+                      ? "Actualiza los datos del servicio veterinario."
+                      : "Completa los campos para guardar un servicio veterinario."}
+                  </p>
                 </div>
 
                 <IonButton
@@ -168,6 +237,8 @@ const VetServices: React.FC = () => {
                   fill="clear"
                   onClick={() => {
                     setFormError("");
+                    setEditingServiceId(null);
+                    setFormData(initialFormData);
                     setIsCreateFormVisible(false);
                   }}
                 >
@@ -247,6 +318,7 @@ const VetServices: React.FC = () => {
                     fill="outline"
                     type="button"
                     onClick={() => {
+                      setEditingServiceId(null);
                       setFormData(initialFormData);
                       setFormError("");
                       setIsCreateFormVisible(false);
@@ -256,7 +328,11 @@ const VetServices: React.FC = () => {
                   </IonButton>
 
                   <IonButton type="submit" disabled={isSaving}>
-                    {isSaving ? "Guardando..." : "Guardar servicio"}
+                    {isSaving
+                      ? "Guardando..."
+                      : editingServiceId !== null
+                        ? "Actualizar servicio"
+                        : "Guardar servicio"}
                   </IonButton>
                 </div>
               </form>
@@ -334,18 +410,26 @@ const VetServices: React.FC = () => {
                               <button
                                 className="services-action services-action--edit"
                                 type="button"
+                                onClick={() => handleStartEdit(service)}
+                                disabled={isSubmittingAction === service.id}
                               >
                                 <IonIcon icon={pencilOutline} />
                               </button>
                               <button
                                 className="services-action services-action--pause"
                                 type="button"
+                                onClick={() => handleToggleStatus(service)}
+                                disabled={isSubmittingAction === service.id}
                               >
-                                <IonIcon icon={pauseOutline} />
+                                <IonIcon
+                                  icon={service.activo ? pauseOutline : playOutline}
+                                />
                               </button>
                               <button
                                 className="services-action services-action--delete"
                                 type="button"
+                                onClick={() => handleDeleteService(service)}
+                                disabled={isSubmittingAction === service.id}
                               >
                                 <IonIcon icon={trashOutline} />
                               </button>
@@ -383,18 +467,26 @@ const VetServices: React.FC = () => {
                         <button
                           className="services-action services-action--edit"
                           type="button"
+                          onClick={() => handleStartEdit(service)}
+                          disabled={isSubmittingAction === service.id}
                         >
                           <IonIcon icon={pencilOutline} />
                         </button>
                         <button
                           className="services-action services-action--pause"
                           type="button"
+                          onClick={() => handleToggleStatus(service)}
+                          disabled={isSubmittingAction === service.id}
                         >
-                          <IonIcon icon={pauseOutline} />
+                          <IonIcon
+                            icon={service.activo ? pauseOutline : playOutline}
+                          />
                         </button>
                         <button
                           className="services-action services-action--delete"
                           type="button"
+                          onClick={() => handleDeleteService(service)}
+                          disabled={isSubmittingAction === service.id}
                         >
                           <IonIcon icon={trashOutline} />
                         </button>

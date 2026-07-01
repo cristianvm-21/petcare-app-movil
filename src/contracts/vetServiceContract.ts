@@ -14,6 +14,8 @@ export interface CreateVetServiceRequest {
   referentialCost: number;
 }
 
+export type UpdateVetServiceRequest = CreateVetServiceRequest;
+
 export interface VetServiceResponse {
   content: VetServiceItem[];
   totalElements?: number;
