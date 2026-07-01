@@ -14,6 +14,7 @@ import React, { useMemo, useState } from "react";
 import { Redirect, Route, useHistory, useLocation } from "react-router-dom";
 import { getCurrentUserRole } from "../auth/session";
 import { getDefaultPrivateRoute, getTabsForRole, privateRoutes } from "../navigation/privateRoutes";
+import Appointments from "../pages/appointments/Appointments";
 import Home from "../pages/home/Home";
 import Owners from "../pages/owners/Owners";
 import Pets from "../pages/pets/Pets";
@@ -83,6 +84,8 @@ const AppTabs: React.FC = () => {
               isAllowed ? (
                 route.key === "home" ? (
                   <Home />
+                ) : route.key === "appointments" ? (
+                  <Appointments />
                 ) : route.key === "services" ? (
                   <Services />
                 ) : route.key === "users" ? (
