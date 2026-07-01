@@ -11,6 +11,7 @@ import { Redirect, Route } from "react-router-dom";
 import { getCurrentUserRole } from "../auth/session";
 import { getDefaultPrivateRoute, getTabsForRole, privateRoutes } from "../navigation/privateRoutes";
 import Home from "../pages/home/Home";
+import Services from "../pages/VetServices/VetServices";
 import SectionPlaceholder from "../pages/shared/SectionPlaceholder";
 
 const AppTabs: React.FC = () => {
@@ -38,6 +39,8 @@ const AppTabs: React.FC = () => {
               isAllowed && currentRole && route.roles.includes(currentRole) ? (
                 route.key === "home" ? (
                   <Home />
+                ) : route.key === "services" ? (
+                  <Services />
                 ) : (
                   <SectionPlaceholder
                     title={route.title}

@@ -1,9 +1,9 @@
 /* => Aquí manejas qué hacer con el token */
 
 import { normalizeUserRole } from "../auth/session";
-import { loginRequest } from "../api/auth";
-import { registerRequest } from "../api/auth";
-import { RegisterRequest } from "../types/authType";
+import { loginRequest } from "../api/authHttp";
+import { registerRequest } from "../api/authHttp";
+import { RegisterRequest } from "../contracts/authContract";
 
 export async function login(username: string, password: string) {
     // response: Guarda un Objeto de tipo  LoginResponse

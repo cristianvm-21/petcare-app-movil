@@ -1,31 +1,30 @@
-import { UserRole } from "../types/authType";
+import { UserRole } from "../types/userRole";
 
-const ROLE_MAP: Record<string, UserRole> = {
-  ADMINISTRADOR: "ADMINISTRADOR",
-  VETERINARIO: "VETERINARIO",
-  ASISTENTE: "ASISTENTE",
-  DUENO: "DUENO",
-  "DUEÑO": "DUENO",
-};
+const VALID_ROLES: UserRole[] = [
+  "ADMINISTRADOR",
+  "VETERINARIO",
+  "ASISTENTE",
+  "DUENO",
+];
 
 export const DEFAULT_PRIVATE_ROUTE = "/app/home";
 
-export function getAuthToken() {
+export function getAuthToken(): string | null {
   return localStorage.getItem("token");
 }
 
-export function isAuthenticated() {
-  return Boolean(getAuthToken() && getCurrentUserRole());
+export function normalizeUserRole(role: string | null): UserRole | null {
+  if (!role) return null;
+
+  return VALID_ROLES.includes(role as UserRole)
+    ? (role as UserRole)
+    : null;
 }
 
-export function normalizeUserRole(role: string | null) {
-  if (!role) {
-    return null;
-  }
-
-  return ROLE_MAP[role] ?? null;
-}
-
-export function getCurrentUserRole() {
+export function getCurrentUserRole(): UserRole | null {
   return normalizeUserRole(localStorage.getItem("role"));
+}
+
+export function isAuthenticated(): boolean {
+  return Boolean(getAuthToken() && getCurrentUserRole());
 }

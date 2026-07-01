@@ -1,7 +1,7 @@
 /* => Aquí solo haces la petición HTTP al backend. */
 import { springbootApi } from "./axiosHttp";
-import { LoginRequest, LoginResponse } from "../types/authType";
-import { RegisterRequest, RegisterResponse } from "../types/authType";
+import { LoginRequest, LoginResponse } from "../contracts/authContract";
+import { RegisterRequest, RegisterResponse } from "../contracts/authContract";
 
 // LOGIN
 export async function loginRequest(credentials:LoginRequest) {

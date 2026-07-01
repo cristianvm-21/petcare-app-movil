@@ -11,7 +11,7 @@ import {
   IonText,
 } from "@ionic/react";
 import { Link, useHistory } from "react-router-dom";
-import { RegisterRequest } from "../../types/authType";
+import { RegisterRequest } from "../../contracts/authContract";
 import { signUp } from "../../services/authService";
 import "./Register.css";
 

@@ -6,7 +6,6 @@ export const springbootApi = axios.create({
     baseURL: "http://localhost:8080/api",
     headers:{
         "Content-Type" :"application/json",
-        
     }
 }) 
 
@@ -19,9 +18,15 @@ springbootApi.interceptors.request.use(
         const token = localStorage.getItem("token");
 
         if (token) {
-            config.headers.Authorization = token;
+            config.headers.Authorization = token.startsWith("Bearer ")
+              ? token
+              : `Bearer ${token}`;
         }
         return config;
+    },
+
+    (error) =>{
+        return Promise.reject(error);
     }
 );
 

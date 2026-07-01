@@ -1,2 +1,7 @@
 /* For information on how to create your own theme, please refer to:
 http://ionicframework.com/docs/theming/ */
+
+:root {
+  --app-color-blanco-suave: #f6fbff;
+  --app-color-celeste: #bfd6f8;
+}

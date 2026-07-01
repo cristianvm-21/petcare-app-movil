@@ -1,0 +1,77 @@
+.app-header {
+  --background: var(--app-color-celeste);
+  --min-height: 132px;
+  --padding-top: 24px;
+  --padding-bottom: 18px;
+  --padding-start: 20px;
+  --padding-end: 20px;
+}
+
+.app-header__title {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-header__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.app-header__profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-header__avatar {
+  width: 74px;
+  height: 74px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 28px rgba(52, 81, 117, 0.14);
+}
+
+.app-header__avatar img {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.app-header__text span {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(18, 49, 77, 0.72);
+  font-size: 0.9rem;
+}
+
+.app-header__text strong {
+  display: block;
+  color: #12314d;
+  font-size: 1.1rem;
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header__action {
+  --color: #12314d;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+@media (max-width: 420px) {
+  .app-header {
+    --min-height: 122px;
+    --padding-start: 16px;
+    --padding-end: 16px;
+  }
+}

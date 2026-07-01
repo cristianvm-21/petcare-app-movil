@@ -3,10 +3,11 @@ import {
   clipboardOutline,
   ellipsisHorizontalOutline,
   homeOutline,
+  medkitOutline,
   pawOutline,
   peopleOutline,
 } from "ionicons/icons";
-import { UserRole } from "../types/authType";
+import { UserRole } from "../types/userRole";
 
 export interface PrivateRouteConfig {
   key: string;
@@ -35,6 +36,16 @@ export const privateRoutes: PrivateRouteConfig[] = [
     description: "Resumen principal de la aplicación.",
     icon: homeOutline,
     roles: ALL_ROLES,
+    showInTab: true,
+  },
+  {
+    key: "services",
+    path: "/app/servicios",
+    label: "Servicios",
+    title: "Servicios",
+    description: "Aquí podrás mostrar los servicios veterinarios disponibles.",
+    icon: medkitOutline,
+    roles: ["ADMINISTRADOR", "ASISTENTE"],
     showInTab: true,
   },
   {

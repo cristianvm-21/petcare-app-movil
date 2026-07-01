@@ -1,10 +1,5 @@
-export type UserRole =
-  | "ADMINISTRADOR"
-  | "VETERINARIO"
-  | "ASISTENTE"
-  | "DUENO";
+import { UserRole } from "../types/userRole";
 
-// -- LOGIN
 export interface LoginRequest {
   username: string;
   password: string;
@@ -12,12 +7,11 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
-  refreshToken:string;
-  username:string;
-  role:string;
+  refreshToken: string;
+  username: string;
+  role: string;
 }
 
-// -- REGISTRO
 export interface RegisterRequest {
   username: string;
   password: string;
