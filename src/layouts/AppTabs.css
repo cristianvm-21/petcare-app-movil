@@ -1,0 +1,40 @@
+.app-tabs__more-button {
+  position: relative;
+}
+
+.app-tabs__more-button--active {
+  color: var(--ion-color-primary, #3880ff);
+}
+
+.app-tabs__more-popover {
+  --width: 220px;
+  --background: transparent;
+  --box-shadow: none;
+}
+
+.app-tabs__more-popover::part(content) {
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-tabs__more-list {
+  padding: 8px;
+  background: var(--app-color-blanco-suave);
+  border-radius: 18px;
+  box-shadow: 0 16px 32px rgba(44, 68, 100, 0.14);
+}
+
+.app-tabs__more-item {
+  --background: transparent;
+  --border-radius: 14px;
+  --color: #12314d;
+  margin-bottom: 6px;
+}
+
+.app-tabs__more-item:last-child {
+  margin-bottom: 0;
+}
+
+.app-tabs__more-item ion-icon {
+  color: #12314d;
+}

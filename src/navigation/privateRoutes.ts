@@ -1,11 +1,11 @@
 import {
   calendarOutline,
   clipboardOutline,
-  ellipsisHorizontalOutline,
   homeOutline,
   medkitOutline,
   pawOutline,
   peopleOutline,
+  personCircleOutline,
 } from "ionicons/icons";
 import { UserRole } from "../types/userRole";
 
@@ -64,18 +64,28 @@ export const privateRoutes: PrivateRouteConfig[] = [
     label: "Usuarios",
     title: "Usuarios",
     description: "Espacio reservado para la gestión administrativa de usuarios.",
-    icon: peopleOutline,
+    icon: personCircleOutline,
     roles: ["ADMINISTRADOR"],
     showInTab: true,
   },
   {
     key: "patients",
-    path: "/app/pacientes",
-    label: "Pacientes",
-    title: "Pacientes",
+    path: "/app/mascotas",
+    label: "Mascotas",
+    title: "Mascotas",
     description: "Espacio reservado para el trabajo clínico del veterinario.",
     icon: pawOutline,
-    roles: ["VETERINARIO"],
+    roles: ["ADMINISTRADOR", "VETERINARIO"],
+    showInTab: true,
+  },
+  {
+    key: "owners",
+    path: "/app/duenos",
+    label: "Dueños",
+    title: "Dueños",
+    description: "Espacio reservado para la gestión de los dueños de mascotas.",
+    icon: peopleOutline,
+    roles: ["ADMINISTRADOR"],
     showInTab: true,
   },
   {
@@ -106,16 +116,6 @@ export const privateRoutes: PrivateRouteConfig[] = [
     description: "Espacio reservado para el historial y seguimiento de mascotas.",
     icon: pawOutline,
     roles: ["DUENO"],
-    showInTab: true,
-  },
-  {
-    key: "more",
-    path: "/app/mas",
-    label: "Más",
-    title: "Más",
-    description: "Aquí podrás agrupar opciones secundarias y configuración.",
-    icon: ellipsisHorizontalOutline,
-    roles: ALL_ROLES,
     showInTab: true,
   },
 ];

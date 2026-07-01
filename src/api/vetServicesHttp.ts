@@ -1,6 +1,6 @@
 /* => Aquí solo haces la petición HTTP al backend. */
 import { springbootApi } from "./axiosHttp";
-import { PageRequest } from "../contracts/PageRequestContract";
+import { PageRequest } from "../contracts/pageRequestContract";
 import {
     CreateVetServiceRequest,
     UpdateVetServiceRequest,
