@@ -1,9 +1,11 @@
 import axios from "axios";
 
+const SPRING_BOOT_API_URL = "https://petcare-backend-appmovil.onrender.com/api";
+
 /* 1) Se crea una instancia para la API */
 /* Crear una instancia separada por servicio evita repetir la URL base en cada llamada */
 export const springbootApi = axios.create({
-    baseURL: "http://localhost:8080/api",
+    baseURL: SPRING_BOOT_API_URL,
     headers:{
         "Content-Type" :"application/json",
     }
