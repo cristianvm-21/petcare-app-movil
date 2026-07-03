@@ -14,6 +14,7 @@ import { eye, eyeOff } from "ionicons/icons";
 import { Link, useHistory } from "react-router-dom";
 import { DEFAULT_PRIVATE_ROUTE } from "../../auth/session";
 import { login } from "../../services/authService";
+import { getHttpErrorMessage } from "../../utils/httpErrorMessage";
 import "./Login.css";
 
 const Login = () => {
@@ -41,7 +42,13 @@ const Login = () => {
       history.replace(DEFAULT_PRIVATE_ROUTE);
     } catch (err) {
       console.error("Error al iniciar sesión:", err);
-      setError("No se pudo iniciar sesión. Verifica tus credenciales.");
+      setError(
+        getHttpErrorMessage(
+          err,
+          "No se pudo iniciar sesión.",
+          "Credenciales inválidas.",
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -60,6 +67,9 @@ const Login = () => {
                   <IonInput
                     type="text"
                     name="username"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
                     value={username}
                     onIonInput={(e) => setUsername(String(e.detail.value ?? ""))}
                   />
@@ -70,6 +80,9 @@ const Login = () => {
                   <IonInput
                     type={showPassword ? "text" : "password"}
                     name="password"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
                     value={password}
                     onIonInput={(e) => setPassword(String(e.detail.value ?? ""))}
                   />
@@ -82,7 +95,7 @@ const Login = () => {
                     }
                     onClick={() => setShowPassword((current) => !current)}
                   >
-                    <IonIcon icon={showPassword ? eyeOff : eye} />
+                    <IonIcon icon={showPassword ? eye : eyeOff} />
                   </IonButton>
                 </IonItem>
               </div>

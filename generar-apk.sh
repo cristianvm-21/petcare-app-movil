@@ -6,7 +6,7 @@ echo " GENERADOR DE APK COMPACTO (WINDOWS) "
 echo "======================================"
 
 PROJECT_DIR="$(pwd)"
-APK_NAME="mi-app-debug.apk"
+APK_NAME="petcare-app.apk"
 
 # 1. Compilación Web
 echo "1. Instalando dependencias npm..."
