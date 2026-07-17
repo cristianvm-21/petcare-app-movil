@@ -392,7 +392,10 @@ const Pets: React.FC = () => {
                     labelPlacement="stacked"
                     value={formData.microchip}
                     onIonInput={(event) =>
-                      updateField("microchip", String(event.detail.value ?? ""))
+                      updateField(
+                        "microchip",
+                        String(event.detail.value ?? "").slice(0, 9),
+                      )
                     }
                   />
 

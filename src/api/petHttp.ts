@@ -55,6 +55,30 @@ export async function httpGetPetOwnerPrincipalAPI(id: number) {
   return response.data;
 }
 
+export async function httpPostPetOwnerLinkAPI(
+  petId: number,
+  ownerId: number,
+  relation: string,
+) {
+  const response = await springbootApi.post<PetItem>(
+    `mascotas/${petId}/vincular-dueno/${ownerId}`,
+    null,
+    {
+      params: {
+        relacion: relation,
+      },
+    },
+  );
+  return response.data;
+}
+
+export async function httpPatchPetOwnerPrincipalAPI(petId: number) {
+  const response = await springbootApi.patch<PetItem>(
+    `mascotas/${petId}/cambiar-dueno-principal`,
+  );
+  return response.data;
+}
+
 export async function httpPostPetAPI(payload: CreatePetRequest) {
   const response = await springbootApi.post<PetItem>("mascotas", payload);
   return response.data;

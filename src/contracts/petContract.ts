@@ -1,4 +1,4 @@
-import { OwnerItem } from "./ownerContract";
+import { OwnerApiItem } from "./ownerContract";
 
 export interface PetItem {
   id: number;
@@ -84,4 +84,4 @@ export interface GetPetsFilters {
 
 export type PetsByOwnerResponse = PetResponse;
 
-export type PetOwnerPrincipalResponse = OwnerItem;
+export type PetOwnerPrincipalResponse = OwnerApiItem;

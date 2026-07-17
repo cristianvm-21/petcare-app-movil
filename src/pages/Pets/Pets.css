@@ -127,6 +127,10 @@
   --background: #fff;
   --border-color: rgba(118, 154, 197, 0.24);
   --border-radius: 16px;
+  --color: #12314d;
+  --placeholder-color: rgba(18, 49, 77, 0.62);
+  --label-color: #12314d;
+  --highlight-color: var(--app-color-celeste);
   --highlight-color-focused: var(--app-color-celeste);
   flex: 1;
 }
@@ -145,6 +149,34 @@
   max-width: none;
   min-width: 0;
   width: 100%;
+}
+
+.pets-field ion-input,
+.pets-field ion-textarea,
+.pets-field ion-select {
+  --color: #12314d;
+  --placeholder-color: rgba(18, 49, 77, 0.62);
+}
+
+.pets-field.ion-valid,
+.pets-field.ion-invalid,
+.pets-field.ion-touched,
+.pets-field.ion-focused {
+  --color: #12314d;
+  --label-color: #12314d;
+}
+
+.pets-field .label-text-wrapper,
+.pets-field .native-input,
+.pets-field textarea,
+.pets-field input {
+  color: #12314d !important;
+}
+
+.pets-field--select::part(label),
+.pets-field ion-input::part(label),
+.pets-field ion-textarea::part(label) {
+  color: #12314d;
 }
 
 .pets-feedback {
