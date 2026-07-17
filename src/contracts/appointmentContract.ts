@@ -27,6 +27,13 @@ export interface AppointmentItem {
   actualizadoEn: string;
 }
 
+export interface AppointmentPageInfo {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export interface CreateAppointmentRequest {
   petId: number;
   veterinarianId: number;
@@ -37,6 +44,7 @@ export interface CreateAppointmentRequest {
 
 export interface AppointmentResponse {
   content: AppointmentItem[];
+  page?: AppointmentPageInfo;
 }
 
 export interface ReprogramAppointmentRequest {
@@ -45,4 +53,17 @@ export interface ReprogramAppointmentRequest {
 
 export interface UpdateAppointmentStatusRequest {
   status: string;
+}
+
+export interface GetAppointmentsFilters {
+  mascotaId?: number;
+  veterinarioId?: number;
+  servicioId?: number;
+  estado?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+}
+
+export interface AppointmentAvailabilityItem {
+  dateTime: string;
 }

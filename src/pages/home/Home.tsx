@@ -95,25 +95,54 @@ const Home: React.FC = () => {
         setIsLoading(true);
         setWarning("");
 
-        const results = await Promise.allSettled([
-          findAllAppointments(),
-          findAllOwners(),
-          findAllPets(),
-          findAllVetServices(),
-          findAllUsers(),
+        const canLoadAppointments =
+          currentRole === "ADMINISTRADOR" ||
+          currentRole === "VETERINARIO" ||
+          currentRole === "ASISTENTE";
+        const canLoadOwners = currentRole === "ADMINISTRADOR";
+        const canLoadPets =
+          currentRole === "ADMINISTRADOR" || currentRole === "VETERINARIO";
+        const canLoadServices =
+          currentRole === "ADMINISTRADOR" || currentRole === "ASISTENTE";
+        const canLoadUsers = currentRole === "ADMINISTRADOR";
+
+        const [
+          appointmentsResult,
+          ownersResult,
+          petsResult,
+          servicesResult,
+          usersResult,
+        ] = await Promise.allSettled([
+          canLoadAppointments
+            ? findAllAppointments()
+            : Promise.resolve([] as AppointmentItem[]),
+          canLoadOwners ? findAllOwners() : Promise.resolve([] as OwnerItem[]),
+          canLoadPets ? findAllPets() : Promise.resolve([] as PetItem[]),
+          canLoadServices
+            ? findAllVetServices()
+            : Promise.resolve([] as VetServiceItem[]),
+          canLoadUsers ? findAllUsers() : Promise.resolve([] as UserItem[]),
         ]);
 
         const nextData: HomeDataState = {
-          appointments: results[0].status === "fulfilled" ? results[0].value : [],
-          owners: results[1].status === "fulfilled" ? results[1].value : [],
-          pets: results[2].status === "fulfilled" ? results[2].value : [],
-          services: results[3].status === "fulfilled" ? results[3].value : [],
-          users: results[4].status === "fulfilled" ? results[4].value : [],
+          appointments:
+            appointmentsResult.status === "fulfilled"
+              ? appointmentsResult.value
+              : [],
+          owners: ownersResult.status === "fulfilled" ? ownersResult.value : [],
+          pets: petsResult.status === "fulfilled" ? petsResult.value : [],
+          services:
+            servicesResult.status === "fulfilled" ? servicesResult.value : [],
+          users: usersResult.status === "fulfilled" ? usersResult.value : [],
         };
 
-        const failedCalls = results.filter(
-          (result) => result.status === "rejected",
-        ).length;
+        const failedCalls = [
+          appointmentsResult,
+          ownersResult,
+          petsResult,
+          servicesResult,
+          usersResult,
+        ].filter((result) => result.status === "rejected").length;
 
         setDashboardData(nextData);
 
@@ -128,7 +157,7 @@ const Home: React.FC = () => {
     }
 
     loadDashboard();
-  }, []);
+  }, [currentRole]);
 
   const dashboardMetrics = useMemo(() => {
     const { appointments, owners, pets, services, users } = dashboardData;

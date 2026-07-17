@@ -22,7 +22,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import AppHeader from "../../components/AppHeader/AppHeader";
 import {
   AppointmentItem,
+  AppointmentAvailabilityItem,
   CreateAppointmentRequest,
+  GetAppointmentsFilters,
   ReprogramAppointmentRequest,
   UpdateAppointmentStatusRequest,
 } from "../../contracts/appointmentContract";
@@ -33,6 +35,7 @@ import {
   createAppointment,
   deleteAppointment,
   findAllAppointments,
+  findAppointmentAvailability,
   findAppointmentById,
   reprogramAppointment,
   updateAppointmentStatus,
@@ -71,13 +74,40 @@ function getVetFullName(vet: UserItem) {
   return `${vet.firstName} ${vet.lastName}`.trim();
 }
 
+function buildAppointmentFilters(params: {
+  petFilter: string;
+  veterinarianFilter: string;
+  serviceFilter: string;
+  statusFilter: string;
+  dateFromFilter: string;
+  dateToFilter: string;
+}): GetAppointmentsFilters {
+  return {
+    mascotaId: params.petFilter !== "0" ? Number(params.petFilter) : undefined,
+    veterinarioId:
+      params.veterinarianFilter !== "0"
+        ? Number(params.veterinarianFilter)
+        : undefined,
+    servicioId:
+      params.serviceFilter !== "0" ? Number(params.serviceFilter) : undefined,
+    estado: params.statusFilter !== "todos" ? params.statusFilter : undefined,
+    fechaDesde: params.dateFromFilter || undefined,
+    fechaHasta: params.dateToFilter || undefined,
+  };
+}
+
 const Appointments: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [pets, setPets] = useState<PetItem[]>([]);
   const [veterinarians, setVeterinarians] = useState<UserItem[]>([]);
   const [services, setServices] = useState<VetServiceItem[]>([]);
   const [query, setQuery] = useState("");
+  const [petFilter, setPetFilter] = useState("0");
+  const [veterinarianFilter, setVeterinarianFilter] = useState("0");
+  const [serviceFilter, setServiceFilter] = useState("0");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -91,14 +121,17 @@ const Appointments: React.FC = () => {
   const [isUpdatingAppointment, setIsUpdatingAppointment] = useState(false);
   const [editDateTime, setEditDateTime] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [availableSlots, setAvailableSlots] = useState<AppointmentAvailabilityItem[]>([]);
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
   const detailSectionRef = useRef<HTMLElement | null>(null);
 
-  async function loadAppointments() {
+  async function loadAppointments(filters?: GetAppointmentsFilters) {
     try {
       setIsLoading(true);
       setError("");
 
-      const appointmentsData = await findAllAppointments();
+      const appointmentsData = await findAllAppointments(filters);
       setAppointments(appointmentsData);
     } catch (err) {
       console.error("No se pudieron cargar las citas:", err);
@@ -126,9 +159,59 @@ const Appointments: React.FC = () => {
   }
 
   useEffect(() => {
-    loadAppointments();
-    loadFormDependencies();
+    void loadFormDependencies();
   }, []);
+
+  useEffect(() => {
+    const filters = buildAppointmentFilters({
+      petFilter,
+      veterinarianFilter,
+      serviceFilter,
+      statusFilter,
+      dateFromFilter,
+      dateToFilter,
+    });
+
+    void loadAppointments(filters);
+  }, [petFilter, veterinarianFilter, serviceFilter, statusFilter, dateFromFilter, dateToFilter]);
+
+  useEffect(() => {
+    async function loadAvailability() {
+      if (
+        formData.veterinarianId <= 0 ||
+        formData.serviceId <= 0 ||
+        !formData.dateTime.trim()
+      ) {
+        setAvailableSlots([]);
+        setAvailabilityError("");
+        return;
+      }
+
+      try {
+        setIsAvailabilityLoading(true);
+        setAvailabilityError("");
+
+        const appointmentDate = formData.dateTime.slice(0, 10);
+        const slots = await findAppointmentAvailability({
+          veterinarioId: formData.veterinarianId,
+          servicioId: formData.serviceId,
+          fecha: appointmentDate,
+        });
+
+        setAvailableSlots(slots);
+      } catch (err) {
+        console.error("No se pudo consultar la disponibilidad:", err);
+        setAvailableSlots([]);
+        setAvailabilityError(
+          "No se pudo consultar la disponibilidad del veterinario.",
+        );
+      } finally {
+        setIsAvailabilityLoading(false);
+      }
+    }
+
+    void loadAvailability();
+  }, [formData.veterinarianId, formData.serviceId, formData.dateTime]);
 
   useEffect(() => {
     if (!selectedAppointment && !isDetailLoading) {
@@ -184,7 +267,16 @@ const Appointments: React.FC = () => {
       });
 
       resetForm();
-      await loadAppointments();
+      await loadAppointments(
+        buildAppointmentFilters({
+          petFilter,
+          veterinarianFilter,
+          serviceFilter,
+          statusFilter,
+          dateFromFilter,
+          dateToFilter,
+        }),
+      );
     } catch (err) {
       console.error("No se pudo registrar la cita:", err);
       setFormError("No se pudo registrar la cita. Inténtalo nuevamente.");
@@ -270,7 +362,16 @@ const Appointments: React.FC = () => {
       setEditDateTime(toInputDateTime(refreshedAppointment.fechaHora));
       setEditStatus(refreshedAppointment.estado);
       setIsEditMode(false);
-      await loadAppointments();
+      await loadAppointments(
+        buildAppointmentFilters({
+          petFilter,
+          veterinarianFilter,
+          serviceFilter,
+          statusFilter,
+          dateFromFilter,
+          dateToFilter,
+        }),
+      );
     } catch (err) {
       console.error("No se pudo actualizar la cita:", err);
       setError("No se pudo actualizar la cita.");
@@ -296,7 +397,16 @@ const Appointments: React.FC = () => {
         setSelectedAppointment(null);
       }
 
-      await loadAppointments();
+      await loadAppointments(
+        buildAppointmentFilters({
+          petFilter,
+          veterinarianFilter,
+          serviceFilter,
+          statusFilter,
+          dateFromFilter,
+          dateToFilter,
+        }),
+      );
     } catch (err) {
       console.error("No se pudo eliminar la cita:", err);
       setError("No se pudo eliminar la cita.");
@@ -315,13 +425,9 @@ const Appointments: React.FC = () => {
         appointment.veterinario.nombre.toLowerCase().includes(loweredQuery) ||
         appointment.veterinario.apellido.toLowerCase().includes(loweredQuery) ||
         appointment.servicio.nombre.toLowerCase().includes(loweredQuery);
-
-      const matchesStatus =
-        statusFilter === "todos" || appointment.estado === statusFilter;
-
-      return matchesQuery && matchesStatus;
+      return matchesQuery;
     });
-  }, [appointments, query, statusFilter]);
+  }, [appointments, query]);
 
   return (
     <IonPage>
@@ -446,6 +552,27 @@ const Appointments: React.FC = () => {
                   }
                 />
 
+                {availabilityError && (
+                  <IonText color="warning">
+                    <p className="appointments-feedback">{availabilityError}</p>
+                  </IonText>
+                )}
+
+                {isAvailabilityLoading ? (
+                  <div className="appointments-loading">
+                    <IonSpinner name="crescent" />
+                    <span>Consultando disponibilidad...</span>
+                  </div>
+                ) : availableSlots.length > 0 ? (
+                  <div className="appointments-feedback">
+                    Horarios sugeridos:{" "}
+                    {availableSlots
+                      .slice(0, 4)
+                      .map((slot) => formatDateTime(slot.dateTime))
+                      .join(" · ")}
+                  </div>
+                ) : null}
+
                 {formError && (
                   <IonText color="danger">
                     <p className="appointments-feedback">{formError}</p>
@@ -478,6 +605,56 @@ const Appointments: React.FC = () => {
               <IonSelect
                 className="appointments-field appointments-field--select"
                 interface="popover"
+                value={petFilter}
+                onIonChange={(event) =>
+                  setPetFilter(String(event.detail.value ?? "0"))
+                }
+              >
+                <IonSelectOption value="0">Todas las mascotas</IonSelectOption>
+                {pets.map((pet) => (
+                  <IonSelectOption key={pet.id} value={String(pet.id)}>
+                    {pet.nombre}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+
+              <IonSelect
+                className="appointments-field appointments-field--select"
+                interface="popover"
+                value={veterinarianFilter}
+                onIonChange={(event) =>
+                  setVeterinarianFilter(String(event.detail.value ?? "0"))
+                }
+              >
+                <IonSelectOption value="0">
+                  Todos los veterinarios
+                </IonSelectOption>
+                {veterinarians.map((vet) => (
+                  <IonSelectOption key={vet.id} value={String(vet.id)}>
+                    {getVetFullName(vet)}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+
+              <IonSelect
+                className="appointments-field appointments-field--select"
+                interface="popover"
+                value={serviceFilter}
+                onIonChange={(event) =>
+                  setServiceFilter(String(event.detail.value ?? "0"))
+                }
+              >
+                <IonSelectOption value="0">Todos los servicios</IonSelectOption>
+                {services.map((service) => (
+                  <IonSelectOption key={service.id} value={String(service.id)}>
+                    {service.nombre}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+
+              <IonSelect
+                className="appointments-field appointments-field--select"
+                interface="popover"
                 value={statusFilter}
                 onIonChange={(event) =>
                   setStatusFilter(String(event.detail.value ?? "todos"))
@@ -491,6 +668,30 @@ const Appointments: React.FC = () => {
                 <IonSelectOption value="ATENDIDA">ATENDIDA</IonSelectOption>
                 <IonSelectOption value="NO_ASISTIO">NO_ASISTIO</IonSelectOption>
               </IonSelect>
+
+              <IonInput
+                className="appointments-field"
+                fill="outline"
+                label="Desde"
+                labelPlacement="stacked"
+                type="date"
+                value={dateFromFilter}
+                onIonInput={(event) =>
+                  setDateFromFilter(String(event.detail.value ?? ""))
+                }
+              />
+
+              <IonInput
+                className="appointments-field"
+                fill="outline"
+                label="Hasta"
+                labelPlacement="stacked"
+                type="date"
+                value={dateToFilter}
+                onIonInput={(event) =>
+                  setDateToFilter(String(event.detail.value ?? ""))
+                }
+              />
             </div>
 
             {error && (

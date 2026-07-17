@@ -23,3 +23,8 @@ export interface VetServiceResponse {
   size?: number;
   number?: number;
 }
+
+export interface GetVetServicesFilters {
+  soloActivos?: boolean;
+  nombre?: string;
+}

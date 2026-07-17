@@ -20,8 +20,18 @@ import {
 } from "ionicons/icons";
 import React, { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader/AppHeader";
-import { CreateUserRequest, UpdateUserRequest, UserItem } from "../../contracts/userContract";
-import { createUser, deleteUser, findAllUsers, toggleUserStatus, updateUser } from "../../services/userService";
+import {
+  CreateUserRequest,
+  UpdateUserRequest,
+  UserItem,
+} from "../../contracts/userContract";
+import {
+  createUser,
+  deleteUser,
+  findUsersCatalog,
+  toggleUserStatus,
+  updateUser,
+} from "../../services/userService";
 import { UserRole } from "../../types/userRole";
 import "./Users.css";
 
@@ -48,6 +58,10 @@ function getFullName(user: UserItem) {
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [listSource, setListSource] = useState<"general" | "veterinarians">(
+    "general",
+  );
+  const [supportsFullCrud, setSupportsFullCrud] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [roleFilter, setRoleFilter] = useState("todos");
@@ -65,8 +79,16 @@ const Users: React.FC = () => {
       setIsLoading(true);
       setError("");
 
-      const usersData = await findAllUsers();
-      setUsers(usersData);
+      const usersCatalog = await findUsersCatalog();
+      setUsers(usersCatalog.items);
+      setListSource(usersCatalog.source);
+      setSupportsFullCrud(usersCatalog.supportsFullCrud);
+
+      if (!usersCatalog.supportsFullCrud) {
+        setError(
+          "El backend actual no expone el catálogo general de usuarios. Se mostrará solo la lista de veterinarios disponible.",
+        );
+      }
     } catch (err) {
       console.error("No se pudieron cargar los usuarios:", err);
       setError("No se pudieron cargar los usuarios del backend.");
@@ -118,15 +140,25 @@ const Users: React.FC = () => {
 
       if (editingUserId !== null) {
         await updateUser(editingUserId, formData as UpdateUserRequest);
+        await loadUsers();
       } else {
-        await createUser(formData);
+        const createdUser = await createUser(formData);
+
+        if (!supportsFullCrud && createdUser.role !== "VETERINARIO") {
+          setUsers((current) => [createdUser, ...current]);
+        } else {
+          await loadUsers();
+        }
       }
 
       resetForm();
-      await loadUsers();
     } catch (err) {
       console.error("No se pudo guardar el usuario:", err);
-      setFormError("No se pudo guardar el usuario. Inténtalo nuevamente.");
+      setFormError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo guardar el usuario. Inténtalo nuevamente.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -151,7 +183,7 @@ const Users: React.FC = () => {
     try {
       setIsSubmittingAction(user.id);
       setError("");
-      await toggleUserStatus(user.id);
+      await toggleUserStatus(user);
       await loadUsers();
     } catch (err) {
       console.error("No se pudo cambiar el estado del usuario:", err);
@@ -177,7 +209,11 @@ const Users: React.FC = () => {
       await loadUsers();
     } catch (err) {
       console.error("No se pudo eliminar el usuario:", err);
-      setError("No se pudo eliminar el usuario.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo eliminar el usuario.",
+      );
     } finally {
       setIsSubmittingAction(null);
     }
@@ -218,6 +254,12 @@ const Users: React.FC = () => {
                 <h1>Usuarios</h1>
               </div>
               <p>Gestiona el acceso, rol y estado de los usuarios del sistema.</p>
+              {listSource === "veterinarians" && (
+                <p>
+                  Vista de compatibilidad: el backend actual solo confirmó el
+                  catálogo de veterinarios.
+                </p>
+              )}
             </div>
 
             <IonButton
@@ -248,6 +290,12 @@ const Users: React.FC = () => {
                       ? "Actualiza la información principal del usuario."
                       : "Completa los campos para registrar un usuario."}
                   </p>
+                  {!supportsFullCrud && editingUserId !== null && (
+                    <p>
+                      La edición completa depende de una ruta heredada que el
+                      backend actual podría no exponer.
+                    </p>
+                  )}
                 </div>
 
                 <IonButton
@@ -459,7 +507,10 @@ const Users: React.FC = () => {
                                 className="users-action users-action--edit"
                                 type="button"
                                 onClick={() => handleStartEdit(user)}
-                                disabled={isSubmittingAction === user.id}
+                                disabled={
+                                  isSubmittingAction === user.id ||
+                                  !supportsFullCrud
+                                }
                               >
                                 <IonIcon icon={pencilOutline} />
                               </button>
@@ -477,7 +528,10 @@ const Users: React.FC = () => {
                                 className="users-action users-action--delete"
                                 type="button"
                                 onClick={() => handleDeleteUser(user)}
-                                disabled={isSubmittingAction === user.id}
+                                disabled={
+                                  isSubmittingAction === user.id ||
+                                  !supportsFullCrud
+                                }
                               >
                                 <IonIcon icon={trashOutline} />
                               </button>
@@ -516,7 +570,9 @@ const Users: React.FC = () => {
                           className="users-action users-action--edit"
                           type="button"
                           onClick={() => handleStartEdit(user)}
-                          disabled={isSubmittingAction === user.id}
+                          disabled={
+                            isSubmittingAction === user.id || !supportsFullCrud
+                          }
                         >
                           <IonIcon icon={pencilOutline} />
                         </button>
@@ -534,7 +590,9 @@ const Users: React.FC = () => {
                           className="users-action users-action--delete"
                           type="button"
                           onClick={() => handleDeleteUser(user)}
-                          disabled={isSubmittingAction === user.id}
+                          disabled={
+                            isSubmittingAction === user.id || !supportsFullCrud
+                          }
                         >
                           <IonIcon icon={trashOutline} />
                         </button>

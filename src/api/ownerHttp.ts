@@ -15,9 +15,24 @@ const ownerPageRequest: PageRequest = {
   size: 100,
 };
 
-export async function httpGetOwnerAPI() {
+interface GetOwnersParams extends Partial<PageRequest> {
+  soloActivos?: boolean;
+  nombre?: string;
+  dni?: string;
+}
+
+interface GetOwnerContactsParams extends Partial<PageRequest> {
+  nombre?: string;
+  telefono?: string;
+  relacion?: string;
+}
+
+export async function httpGetOwnerAPI(params?: GetOwnersParams) {
   const response = await springbootApi.get<OwnerResponse>("duenos", {
-    params: ownerPageRequest,
+    params: {
+      ...ownerPageRequest,
+      ...params,
+    },
   });
   return response.data;
 }
@@ -27,9 +42,18 @@ export async function httpGetOwnerByIdAPI(id: number) {
   return response.data;
 }
 
-export async function httpGetOwnerContactsAPI(id: number) {
+export async function httpGetOwnerContactsAPI(
+  id: number,
+  params?: GetOwnerContactsParams,
+) {
   const response = await springbootApi.get<OwnerContactsResponse>(
     `duenos/${id}/contactos`,
+    {
+      params: {
+        ...ownerPageRequest,
+        ...params,
+      },
+    },
   );
   return response.data;
 }
@@ -67,6 +91,6 @@ export async function httpDeleteOwnerAPI(id: number) {
   await springbootApi.delete(`duenos/${id}`);
 }
 
-export async function httpDeleteOwnerContactsAPI(id: number) {
-  await springbootApi.delete(`duenos/${id}/contactos`);
+export async function httpDeleteOwnerContactAPI(contactId: number) {
+  await springbootApi.delete(`duenos/contactos/${contactId}`);
 }

@@ -35,7 +35,7 @@ import {
   createOwner,
   createOwnerContact,
   deleteOwner,
-  deleteOwnerContacts,
+  deleteOwnerContact,
   findAllOwners,
   findOwnerById,
   findOwnerContacts,
@@ -65,18 +65,6 @@ function getOwnerFullName(owner: OwnerItem) {
   return `${owner.nombre} ${owner.apellido}`.trim();
 }
 
-function getContactName(contact: OwnerContactItem) {
-  return contact.nombre ?? contact.name ?? "";
-}
-
-function getContactPhone(contact: OwnerContactItem) {
-  return contact.telefono ?? contact.phone ?? "";
-}
-
-function getContactRelation(contact: OwnerContactItem) {
-  return contact.relacion ?? contact.relation ?? "";
-}
-
 const Owners: React.FC = () => {
   const [owners, setOwners] = useState<OwnerItem[]>([]);
   const [query, setQuery] = useState("");
@@ -93,6 +81,7 @@ const Owners: React.FC = () => {
     useState<CreateOwnerRequest>(initialOwnerFormData);
   const [ownerUsers, setOwnerUsers] = useState<UserItem[]>([]);
   const [isOwnerUsersLoading, setIsOwnerUsersLoading] = useState(false);
+  const [ownerUsersWarning, setOwnerUsersWarning] = useState("");
   const [selectedOwner, setSelectedOwner] = useState<OwnerItem | null>(null);
   const [contacts, setContacts] = useState<OwnerContactItem[]>([]);
   const [isContactsLoading, setIsContactsLoading] = useState(false);
@@ -101,7 +90,7 @@ const Owners: React.FC = () => {
     useState<CreateOwnerContactRequest>(initialContactFormData);
   const [contactFormError, setContactFormError] = useState("");
   const [isSavingContact, setIsSavingContact] = useState(false);
-  const [isDeletingContacts, setIsDeletingContacts] = useState(false);
+  const [deletingContactId, setDeletingContactId] = useState<number | null>(null);
 
   async function loadOwners() {
     try {
@@ -136,6 +125,7 @@ const Owners: React.FC = () => {
   async function loadOwnerUsers() {
     try {
       setIsOwnerUsersLoading(true);
+      setOwnerUsersWarning("");
 
       const availableUsers = await findUsersByFilters({
         soloActivos: true,
@@ -145,7 +135,10 @@ const Owners: React.FC = () => {
       setOwnerUsers(availableUsers);
     } catch (err) {
       console.error("No se pudieron cargar los usuarios dueños:", err);
-      setFormError("No se pudieron cargar los usuarios disponibles.");
+      setOwnerUsers([]);
+      setOwnerUsersWarning(
+        "No se pudo cargar la lista de usuarios dueños. Puedes ingresar el ID manualmente.",
+      );
     } finally {
       setIsOwnerUsersLoading(false);
     }
@@ -217,7 +210,7 @@ const Owners: React.FC = () => {
     }
 
     if (ownerFormData.userId <= 0) {
-      setFormError("El ID del usuario debe ser mayor que cero.");
+      setFormError("El usuario asociado debe tener un ID válido.");
       return;
     }
 
@@ -381,13 +374,13 @@ const Owners: React.FC = () => {
     }
   }
 
-  async function handleDeleteContacts() {
-    if (!selectedOwner) {
+  async function handleDeleteContact(contact: OwnerContactItem) {
+    if (!selectedOwner || !contact.id) {
       return;
     }
 
     const confirmed = window.confirm(
-      `¿Deseas eliminar los contactos de "${getOwnerFullName(selectedOwner)}"?`,
+      `¿Deseas eliminar el contacto "${contact.nombre}"?`,
     );
 
     if (!confirmed) {
@@ -395,15 +388,15 @@ const Owners: React.FC = () => {
     }
 
     try {
-      setIsDeletingContacts(true);
+      setDeletingContactId(contact.id);
       setContactsError("");
-      await deleteOwnerContacts(selectedOwner.id);
+      await deleteOwnerContact(contact.id);
       await loadOwnerContacts(selectedOwner.id);
     } catch (err) {
-      console.error("No se pudieron eliminar los contactos:", err);
-      setContactsError("No se pudieron eliminar los contactos del dueño.");
+      console.error("No se pudo eliminar el contacto:", err);
+      setContactsError("No se pudo eliminar el contacto seleccionado.");
     } finally {
-      setIsDeletingContacts(false);
+      setDeletingContactId(null);
     }
   }
 
@@ -472,6 +465,7 @@ const Owners: React.FC = () => {
                       ? "Actualiza la información principal del dueño."
                       : "Completa los campos para registrar un dueño."}
                   </p>
+                  {ownerUsersWarning && <p>{ownerUsersWarning}</p>}
                 </div>
 
                 <IonButton
@@ -548,25 +542,43 @@ const Owners: React.FC = () => {
                     }
                   />
 
-                  <IonSelect
-                    className="owners-field owners-field--select"
-                    interface="popover"
-                    value={ownerFormData.userId || undefined}
-                    placeholder={
-                      isOwnerUsersLoading
-                        ? "Cargando usuarios..."
-                        : "Selecciona un usuario dueño"
-                    }
-                    onIonChange={(event) =>
-                      handleOwnerUserSelect(Number(event.detail.value ?? 0))
-                    }
-                  >
-                    {ownerUsers.map((user) => (
-                      <IonSelectOption key={user.id} value={user.id}>
-                        {`${user.firstName} ${user.lastName}`}
-                      </IonSelectOption>
-                    ))}
-                  </IonSelect>
+                  {ownerUsers.length > 0 ? (
+                    <IonSelect
+                      className="owners-field owners-field--select"
+                      interface="popover"
+                      value={ownerFormData.userId || undefined}
+                      placeholder={
+                        isOwnerUsersLoading
+                          ? "Cargando usuarios..."
+                          : "Selecciona un usuario dueño"
+                      }
+                      onIonChange={(event) =>
+                        handleOwnerUserSelect(Number(event.detail.value ?? 0))
+                      }
+                    >
+                      {ownerUsers.map((user) => (
+                        <IonSelectOption key={user.id} value={user.id}>
+                          {`${user.firstName} ${user.lastName}`}
+                        </IonSelectOption>
+                      ))}
+                    </IonSelect>
+                  ) : (
+                    <IonInput
+                      className="owners-field"
+                      fill="outline"
+                      label="ID de usuario"
+                      labelPlacement="stacked"
+                      type="number"
+                      min="1"
+                      value={ownerFormData.userId || ""}
+                      onIonInput={(event) =>
+                        updateOwnerField(
+                          "userId",
+                          Number(event.detail.value ?? 0),
+                        )
+                      }
+                    />
+                  )}
                 </div>
 
                 <IonTextarea
@@ -828,15 +840,6 @@ const Owners: React.FC = () => {
                     Agrega o elimina los contactos asociados a este dueño.
                   </p>
                 </div>
-
-                <IonButton
-                  color="danger"
-                  fill="outline"
-                  onClick={handleDeleteContacts}
-                  disabled={isDeletingContacts}
-                >
-                  Eliminar contactos
-                </IonButton>
               </div>
 
               <form className="owners-contact-form" onSubmit={handleSubmitContact}>
@@ -916,11 +919,21 @@ const Owners: React.FC = () => {
                   {contacts.map((contact, index) => (
                     <article
                       className="owners-contact-card"
-                      key={contact.id ?? `${getContactName(contact)}-${index}`}
+                      key={contact.id ?? `${contact.nombre}-${index}`}
                     >
-                      <h3>{getContactName(contact) || "Contacto sin nombre"}</h3>
-                      <p>{getContactRelation(contact) || "Relación no indicada"}</p>
-                      <strong>{getContactPhone(contact) || "Sin teléfono"}</strong>
+                      <h3>{contact.nombre || "Contacto sin nombre"}</h3>
+                      <p>{contact.relacion || "Relación no indicada"}</p>
+                      <strong>{contact.telefono || "Sin teléfono"}</strong>
+                      {contact.id && (
+                        <IonButton
+                          color="danger"
+                          fill="clear"
+                          onClick={() => handleDeleteContact(contact)}
+                          disabled={deletingContactId === contact.id}
+                        >
+                          Eliminar
+                        </IonButton>
+                      )}
                     </article>
                   ))}
                 </div>

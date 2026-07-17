@@ -1,5 +1,6 @@
 import {
   httpDeleteVetServiceAPI,
+  httpGetVetServiceByIdAPI,
   httpGetVetServicesAPI,
   httpPatchVetServiceAPI,
   httpPostVetServiceAPI,
@@ -7,14 +8,20 @@ import {
 } from "../api/vetServicesHttp";
 import {
   CreateVetServiceRequest,
+  GetVetServicesFilters,
   UpdateVetServiceRequest,
   VetServiceItem,
   VetServiceResponse,
 } from "../contracts/vetServiceContract";
 
-export async function findAllVetServices() {
-  const response: VetServiceResponse = await httpGetVetServicesAPI();
+export async function findAllVetServices(filters?: GetVetServicesFilters) {
+  const response: VetServiceResponse = await httpGetVetServicesAPI(filters);
   return response.content ?? [];
+}
+
+export async function findVetServiceById(id: number) {
+  const response: VetServiceItem = await httpGetVetServiceByIdAPI(id);
+  return response;
 }
 
 export async function createVetService(

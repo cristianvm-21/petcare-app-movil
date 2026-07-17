@@ -23,8 +23,20 @@ export interface CreateUserRequest {
 
 export type UpdateUserRequest = CreateUserRequest;
 
-export interface UserResponse {
-  content: UserItem[];
+export interface UserPageInfo {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
 }
 
-export type VeterinarianResponse = UserItem[];
+export interface UserResponse {
+  content: UserItem[];
+  page?: UserPageInfo;
+}
+
+export type UserListResponse = UserResponse | UserItem[];
+
+export interface UpdateUserStatusRequest {
+  active: boolean;
+}

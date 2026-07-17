@@ -19,7 +19,7 @@ import "./Login.css";
 
 const Login = () => {
   const history = useHistory();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,8 +28,8 @@ const Login = () => {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!username.trim() || !password.trim()) {
-      setError("Completa usuario y contraseña.");
+    if (!email.trim() || !password.trim()) {
+      setError("Completa correo y contraseña.");
       return;
     }
 
@@ -37,7 +37,7 @@ const Login = () => {
       setIsSubmitting(true);
       setError("");
 
-      const response = await login(username, password);
+      const response = await login(email, password);
       console.log("Login correcto:", response);
       history.replace(DEFAULT_PRIVATE_ROUTE);
     } catch (err) {
@@ -63,15 +63,15 @@ const Login = () => {
               <legend className="login-legend">Inicia Sesión</legend>
               <div className="login-fields">
                 <IonItem className="login-item" lines="inset">
-                  <IonLabel position="stacked">Usuario</IonLabel>
+                  <IonLabel position="stacked">Correo</IonLabel>
                   <IonInput
-                    type="text"
-                    name="username"
+                    type="email"
+                    name="email"
                     autocapitalize="off"
                     autocorrect="off"
                     spellcheck={false}
-                    value={username}
-                    onIonInput={(e) => setUsername(String(e.detail.value ?? ""))}
+                    value={email}
+                    onIonInput={(e) => setEmail(String(e.detail.value ?? ""))}
                   />
                 </IonItem>
 

@@ -1,6 +1,6 @@
 import {
   httpDeleteOwnerAPI,
-  httpDeleteOwnerContactsAPI,
+  httpDeleteOwnerContactAPI,
   httpGetOwnerAPI,
   httpGetOwnerByIdAPI,
   httpGetOwnerContactsAPI,
@@ -19,8 +19,23 @@ import {
   UpdateOwnerRequest,
 } from "../contracts/ownerContract";
 
-export async function findAllOwners() {
-  const response: OwnerResponse = await httpGetOwnerAPI();
+function normalizeOwnerContacts(response: OwnerContactsResponse) {
+  const items = Array.isArray(response) ? response : response.content ?? [];
+
+  return items.map((contact) => ({
+    id: contact.id,
+    nombre: contact.nombre ?? "",
+    telefono: contact.telefono ?? "",
+    relacion: contact.relacion ?? "",
+  }));
+}
+
+export async function findAllOwners(filters?: {
+  soloActivos?: boolean;
+  nombre?: string;
+  dni?: string;
+}) {
+  const response: OwnerResponse = await httpGetOwnerAPI(filters);
   return response.content ?? [];
 }
 
@@ -29,9 +44,19 @@ export async function findOwnerById(id: number) {
   return response;
 }
 
-export async function findOwnerContacts(id: number) {
-  const response: OwnerContactsResponse = await httpGetOwnerContactsAPI(id);
-  return response ?? [];
+export async function findOwnerContacts(
+  id: number,
+  filters?: {
+    nombre?: string;
+    telefono?: string;
+    relacion?: string;
+  },
+) {
+  const response: OwnerContactsResponse = await httpGetOwnerContactsAPI(
+    id,
+    filters,
+  );
+  return normalizeOwnerContacts(response);
 }
 
 export async function createOwner(payload: CreateOwnerRequest) {
@@ -49,7 +74,12 @@ export async function createOwnerContact(
   payload: CreateOwnerContactRequest,
 ) {
   const response: OwnerContactItem = await httpPostOwnerContactAPI(id, payload);
-  return response;
+  return {
+    id: response.id,
+    nombre: response.nombre ?? payload.name,
+    telefono: response.telefono ?? payload.phone,
+    relacion: response.relacion ?? payload.relation,
+  };
 }
 
 export async function toggleOwnerStatus(id: number) {
@@ -61,6 +91,6 @@ export async function deleteOwner(id: number) {
   await httpDeleteOwnerAPI(id);
 }
 
-export async function deleteOwnerContacts(id: number) {
-  await httpDeleteOwnerContactsAPI(id);
+export async function deleteOwnerContact(contactId: number) {
+  await httpDeleteOwnerContactAPI(contactId);
 }

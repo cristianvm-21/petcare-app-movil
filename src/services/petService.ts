@@ -10,6 +10,7 @@ import {
 } from "../api/petHttp";
 import {
   CreatePetRequest,
+  GetPetsFilters,
   PetItem,
   PetOwnerPrincipalResponse,
   PetsByOwnerResponse,
@@ -18,17 +19,13 @@ import {
 } from "../contracts/petContract";
 import { OwnerItem } from "../contracts/ownerContract";
 
-function normalizePetsResponse(response: PetsByOwnerResponse) {
-  if (Array.isArray(response)) {
-    return response;
-  }
-
+function normalizePetsResponse(response: PetResponse | PetsByOwnerResponse) {
   return response.content ?? [];
 }
 
-export async function findAllPets() {
-  const response: PetResponse = await httpGetPetAPI();
-  return response.content ?? [];
+export async function findAllPets(filters?: GetPetsFilters) {
+  const response: PetResponse = await httpGetPetAPI(filters);
+  return normalizePetsResponse(response);
 }
 
 export async function findPetById(id: number) {

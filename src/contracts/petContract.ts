@@ -44,6 +44,15 @@ export interface PetResponse {
   page?: PetPageInfo;
 }
 
-export type PetsByOwnerResponse = PetResponse | PetItem[];
+export interface GetPetsFilters {
+  nombre?: string;
+  especie?: string;
+  raza?: string;
+  sexo?: string;
+  activo?: boolean;
+  duenoId?: number;
+}
+
+export type PetsByOwnerResponse = PetResponse;
 
 export type PetOwnerPrincipalResponse = OwnerItem;

@@ -24,12 +24,9 @@ export interface OwnerItem {
 
 export interface OwnerContactItem {
   id?: number;
-  nombre?: string;
-  telefono?: string;
-  relacion?: string;
-  name?: string;
-  phone?: string;
-  relation?: string;
+  nombre: string;
+  telefono: string;
+  relacion: string;
 }
 
 export interface CreateOwnerRequest {
@@ -54,4 +51,18 @@ export interface OwnerResponse {
   content: OwnerItem[];
 }
 
-export type OwnerContactsResponse = OwnerContactItem[];
+export interface OwnerContactsPageInfo {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface OwnerContactsPagedResponse {
+  content: OwnerContactItem[];
+  page?: OwnerContactsPageInfo;
+}
+
+export type OwnerContactsResponse =
+  | OwnerContactItem[]
+  | OwnerContactsPagedResponse;
