@@ -58,7 +58,9 @@ const AppTabs: React.FC = () => {
   );
 
   function handleOpenMoreMenu(event: CustomEvent) {
-    setMoreMenuEvent(event);
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    setMoreMenuEvent((event as Event) ?? undefined);
   }
 
   function handleSelectOverflowTab(path: string) {
@@ -116,10 +118,23 @@ const AppTabs: React.FC = () => {
           </IonTabButton>
         ))}
 
+        {overflowTabs.map((tab) => (
+          <IonTabButton
+            className="app-tabs__hidden-tab"
+            key={`${tab.path}-hidden`}
+            tab={tab.key}
+            href={tab.path}
+          >
+            <IonIcon icon={tab.icon} />
+            <IonLabel>{tab.label}</IonLabel>
+          </IonTabButton>
+        ))}
+
         {overflowTabs.length > 0 && (
           <IonTabButton
             className={`app-tabs__more-button${isMoreActive ? " app-tabs__more-button--active" : ""}`}
-            tab="more-menu"
+            tab="more-trigger"
+            href={location.pathname}
             onClick={handleOpenMoreMenu}
           >
             <IonIcon icon={ellipsisHorizontalOutline} />

@@ -22,6 +22,7 @@ import {
   trashOutline,
 } from "ionicons/icons";
 import React, { useEffect, useMemo, useState } from "react";
+import { useHistory } from "react-router-dom";
 import AppHeader from "../../components/AppHeader/AppHeader";
 import {
   CreateOwnerContactRequest,
@@ -50,6 +51,7 @@ const initialOwnerFormData: CreateOwnerRequest = {
   lastName: "",
   dni: "",
   email: "",
+  password: "",
   phone: "",
   address: "",
   userId: 0,
@@ -62,10 +64,30 @@ const initialContactFormData: CreateOwnerContactRequest = {
 };
 
 function getOwnerFullName(owner: OwnerItem) {
-  return `${owner.nombre} ${owner.apellido}`.trim();
+  return `${owner.nombre} ${owner.apellido}`.trim() || `Dueño #${owner.id}`;
+}
+
+function resolveOwnerUserId(owner: OwnerItem, ownerUsers: UserItem[]) {
+  if (owner.usuario?.id) {
+    return owner.usuario.id;
+  }
+
+  const matchedUser = ownerUsers.find((user) => {
+    const matchesEmail =
+      owner.email.trim().length > 0 &&
+      user.email.toLowerCase() === owner.email.toLowerCase();
+    const matchesName =
+      user.firstName.toLowerCase() === owner.nombre.toLowerCase() &&
+      user.lastName.toLowerCase() === owner.apellido.toLowerCase();
+
+    return matchesEmail || matchesName;
+  });
+
+  return matchedUser?.id ?? 0;
 }
 
 const Owners: React.FC = () => {
+  const history = useHistory();
   const [owners, setOwners] = useState<OwnerItem[]>([]);
   const [query, setQuery] = useState("");
   const [ownerIdSearch, setOwnerIdSearch] = useState("");
@@ -209,6 +231,15 @@ const Owners: React.FC = () => {
       return;
     }
 
+    if (!ownerFormData.password.trim()) {
+      setFormError(
+        editingOwnerId !== null
+          ? "Ingresa la contraseña del usuario para actualizar el dueño."
+          : "Completa todos los campos del dueño.",
+      );
+      return;
+    }
+
     if (ownerFormData.userId <= 0) {
       setFormError("El usuario asociado debe tener un ID válido.");
       return;
@@ -281,19 +312,38 @@ const Owners: React.FC = () => {
     await loadOwnerContacts(owner.id);
   }
 
-  function handleStartEdit(owner: OwnerItem) {
-    setEditingOwnerId(owner.id);
-    setFormError("");
-    setOwnerFormData({
-      firstName: owner.nombre,
-      lastName: owner.apellido,
-      dni: owner.dni,
-      email: owner.email,
-      phone: owner.telefono,
-      address: owner.direccion,
-      userId: owner.usuario?.id ?? 0,
-    });
-    setIsFormVisible(true);
+  async function handleStartEdit(owner: OwnerItem) {
+    try {
+      setIsSubmittingAction(owner.id);
+      setFormError("");
+
+      const ownerDetail = await findOwnerById(owner.id);
+      const resolvedUserId = resolveOwnerUserId(ownerDetail, ownerUsers);
+
+      setEditingOwnerId(owner.id);
+      setOwnerFormData({
+        firstName: ownerDetail.nombre,
+        lastName: ownerDetail.apellido,
+        dni: ownerDetail.dni,
+        email: ownerDetail.email,
+        password: "",
+        phone: ownerDetail.telefono,
+        address: ownerDetail.direccion,
+        userId: resolvedUserId,
+      });
+      setIsFormVisible(true);
+
+      if (resolvedUserId <= 0) {
+        setFormError(
+          "No se pudo identificar el usuario asociado. Selecciónalo manualmente antes de guardar.",
+        );
+      }
+    } catch (err) {
+      console.error("No se pudo cargar el dueño para editar:", err);
+      setError("No se pudo cargar el dueño para editar.");
+    } finally {
+      setIsSubmittingAction(null);
+    }
   }
 
   async function handleToggleStatus(owner: OwnerItem) {
@@ -439,15 +489,10 @@ const Owners: React.FC = () => {
 
             <IonButton
               className="owners-hero__cta"
-              onClick={() => {
-                setFormError("");
-                setEditingOwnerId(null);
-                setOwnerFormData(initialOwnerFormData);
-                setIsFormVisible((current) => !current);
-              }}
+              onClick={() => history.push("/app/usuarios?crearDueno=true")}
             >
               <IonIcon icon={addOutline} slot="start" />
-              Nuevo Dueño
+              Registrar Dueño
             </IonButton>
           </section>
 
@@ -480,12 +525,53 @@ const Owners: React.FC = () => {
 
               <form className="owners-form" onSubmit={handleSubmitOwner}>
                 <div className="owners-form__grid">
+                  {ownerUsers.length > 0 ? (
+                    <IonSelect
+                      className="owners-field owners-field--select owners-field--full"
+                      interface="popover"
+                      value={ownerFormData.userId || undefined}
+                      placeholder={
+                        isOwnerUsersLoading
+                          ? "Cargando usuarios..."
+                          : "Selecciona un usuario dueño"
+                      }
+                      onIonChange={(event) =>
+                        handleOwnerUserSelect(Number(event.detail.value ?? 0))
+                      }
+                    >
+                      {ownerUsers
+                        .filter((user) => user.role === "DUENO")
+                        .map((user) => (
+                          <IonSelectOption key={user.id} value={user.id}>
+                            {`${user.firstName} ${user.lastName}`}
+                          </IonSelectOption>
+                        ))}
+                    </IonSelect>
+                  ) : (
+                    <IonInput
+                      className="owners-field owners-field--full"
+                      fill="outline"
+                      label="ID de usuario"
+                      labelPlacement="stacked"
+                      type="number"
+                      min="1"
+                      value={ownerFormData.userId || ""}
+                      onIonInput={(event) =>
+                        updateOwnerField(
+                          "userId",
+                          Number(event.detail.value ?? 0),
+                        )
+                      }
+                    />
+                  )}
+
                   <IonInput
                     className="owners-field"
                     fill="outline"
                     label="Nombre"
                     labelPlacement="stacked"
                     value={ownerFormData.firstName}
+                    disabled={ownerUsers.length > 0 && editingOwnerId === null}
                     onIonInput={(event) =>
                       updateOwnerField(
                         "firstName",
@@ -500,6 +586,7 @@ const Owners: React.FC = () => {
                     label="Apellido"
                     labelPlacement="stacked"
                     value={ownerFormData.lastName}
+                    disabled={ownerUsers.length > 0 && editingOwnerId === null}
                     onIonInput={(event) =>
                       updateOwnerField(
                         "lastName",
@@ -515,7 +602,10 @@ const Owners: React.FC = () => {
                     labelPlacement="stacked"
                     value={ownerFormData.dni}
                     onIonInput={(event) =>
-                      updateOwnerField("dni", String(event.detail.value ?? ""))
+                      updateOwnerField(
+                        "dni",
+                        String(event.detail.value ?? "").slice(0, 8),
+                      )
                     }
                   />
 
@@ -526,8 +616,25 @@ const Owners: React.FC = () => {
                     labelPlacement="stacked"
                     type="email"
                     value={ownerFormData.email}
+                    disabled={ownerUsers.length > 0 && editingOwnerId === null}
                     onIonInput={(event) =>
                       updateOwnerField("email", String(event.detail.value ?? ""))
+                    }
+                  />
+
+                  <IonInput
+                    className="owners-field"
+                    fill="outline"
+                    label={
+                      editingOwnerId !== null
+                        ? "Contraseña del usuario"
+                        : "Contraseña"
+                    }
+                    labelPlacement="stacked"
+                    type="password"
+                    value={ownerFormData.password}
+                    onIonInput={(event) =>
+                      updateOwnerField("password", String(event.detail.value ?? ""))
                     }
                   />
 
@@ -537,48 +644,11 @@ const Owners: React.FC = () => {
                     label="Teléfono"
                     labelPlacement="stacked"
                     value={ownerFormData.phone}
+                    disabled={ownerUsers.length > 0 && editingOwnerId === null}
                     onIonInput={(event) =>
                       updateOwnerField("phone", String(event.detail.value ?? ""))
                     }
                   />
-
-                  {ownerUsers.length > 0 ? (
-                    <IonSelect
-                      className="owners-field owners-field--select"
-                      interface="popover"
-                      value={ownerFormData.userId || undefined}
-                      placeholder={
-                        isOwnerUsersLoading
-                          ? "Cargando usuarios..."
-                          : "Selecciona un usuario dueño"
-                      }
-                      onIonChange={(event) =>
-                        handleOwnerUserSelect(Number(event.detail.value ?? 0))
-                      }
-                    >
-                      {ownerUsers.map((user) => (
-                        <IonSelectOption key={user.id} value={user.id}>
-                          {`${user.firstName} ${user.lastName}`}
-                        </IonSelectOption>
-                      ))}
-                    </IonSelect>
-                  ) : (
-                    <IonInput
-                      className="owners-field"
-                      fill="outline"
-                      label="ID de usuario"
-                      labelPlacement="stacked"
-                      type="number"
-                      min="1"
-                      value={ownerFormData.userId || ""}
-                      onIonInput={(event) =>
-                        updateOwnerField(
-                          "userId",
-                          Number(event.detail.value ?? 0),
-                        )
-                      }
-                    />
-                  )}
                 </div>
 
                 <IonTextarea
@@ -706,7 +776,7 @@ const Owners: React.FC = () => {
                           <td>{index + 1}</td>
                           <td>{getOwnerFullName(owner)}</td>
                           <td>{owner.dni}</td>
-                          <td>{owner.email}</td>
+                          <td>{owner.email || "Sin correo"}</td>
                           <td>{owner.telefono}</td>
                           <td>{owner.direccion}</td>
                           <td>
@@ -782,7 +852,9 @@ const Owners: React.FC = () => {
                         <strong>{owner.telefono}</strong>
                       </div>
 
-                      <div className="owners-mobile-card__email">{owner.email}</div>
+                      <div className="owners-mobile-card__email">
+                        {owner.email || "Sin correo"}
+                      </div>
 
                       <div className="owners-actions">
                         <button
@@ -867,7 +939,7 @@ const Owners: React.FC = () => {
                     onIonInput={(event) =>
                       updateContactField(
                         "phone",
-                        String(event.detail.value ?? ""),
+                        String(event.detail.value ?? "").slice(0, 9),
                       )
                     }
                   />

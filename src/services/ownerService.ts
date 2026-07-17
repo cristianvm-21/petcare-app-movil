@@ -12,21 +12,56 @@ import {
 import {
   CreateOwnerContactRequest,
   CreateOwnerRequest,
+  OwnerApiItem,
+  OwnerApiResponse,
+  OwnerApiUserItem,
+  OwnerContactApiItem,
   OwnerContactItem,
   OwnerContactsResponse,
   OwnerItem,
-  OwnerResponse,
   UpdateOwnerRequest,
 } from "../contracts/ownerContract";
+
+function normalizeOwnerUser(user?: OwnerApiUserItem | null) {
+  if (!user) {
+    return undefined;
+  }
+
+  return {
+    id: user.id,
+    nombre: user.nombre ?? user.names ?? "",
+    apellido: user.apellido ?? user.lastNames ?? "",
+    email: user.email ?? "",
+    telefono: user.telefono ?? user.phone ?? "",
+    rol: user.rol ?? "",
+    activo: user.activo ?? user.active ?? true,
+  };
+}
+
+function normalizeOwner(owner: OwnerApiItem): OwnerItem {
+  const normalizedUser = normalizeOwnerUser(owner.usuario);
+
+  return {
+    id: owner.id,
+    nombre: owner.nombre ?? normalizedUser?.nombre ?? "",
+    apellido: owner.apellido ?? normalizedUser?.apellido ?? "",
+    dni: owner.dni,
+    email: owner.email ?? normalizedUser?.email ?? "",
+    telefono: owner.telefono ?? owner.phone ?? normalizedUser?.telefono ?? "",
+    direccion: owner.direccion ?? owner.address ?? "",
+    usuario: normalizedUser,
+    activo: owner.activo ?? owner.active ?? normalizedUser?.activo ?? true,
+  };
+}
 
 function normalizeOwnerContacts(response: OwnerContactsResponse) {
   const items = Array.isArray(response) ? response : response.content ?? [];
 
-  return items.map((contact) => ({
+  return items.map((contact: OwnerContactApiItem) => ({
     id: contact.id,
-    nombre: contact.nombre ?? "",
-    telefono: contact.telefono ?? "",
-    relacion: contact.relacion ?? "",
+    nombre: contact.nombre ?? contact.name ?? "",
+    telefono: contact.telefono ?? contact.phone ?? "",
+    relacion: contact.relacion ?? contact.relation ?? "",
   }));
 }
 
@@ -35,13 +70,13 @@ export async function findAllOwners(filters?: {
   nombre?: string;
   dni?: string;
 }) {
-  const response: OwnerResponse = await httpGetOwnerAPI(filters);
-  return response.content ?? [];
+  const response: OwnerApiResponse = await httpGetOwnerAPI(filters);
+  return (response.content ?? []).map(normalizeOwner);
 }
 
 export async function findOwnerById(id: number) {
-  const response: OwnerItem = await httpGetOwnerByIdAPI(id);
-  return response;
+  const response: OwnerApiItem = await httpGetOwnerByIdAPI(id);
+  return normalizeOwner(response);
 }
 
 export async function findOwnerContacts(
@@ -60,31 +95,31 @@ export async function findOwnerContacts(
 }
 
 export async function createOwner(payload: CreateOwnerRequest) {
-  const response: OwnerItem = await httpPostOwnerAPI(payload);
-  return response;
+  const response: OwnerApiItem = await httpPostOwnerAPI(payload);
+  return normalizeOwner(response);
 }
 
 export async function updateOwner(id: number, payload: UpdateOwnerRequest) {
-  const response: OwnerItem = await httpPutOwnerAPI(id, payload);
-  return response;
+  const response: OwnerApiItem = await httpPutOwnerAPI(id, payload);
+  return normalizeOwner(response);
 }
 
 export async function createOwnerContact(
   id: number,
   payload: CreateOwnerContactRequest,
 ) {
-  const response: OwnerContactItem = await httpPostOwnerContactAPI(id, payload);
+  const response: OwnerContactApiItem = await httpPostOwnerContactAPI(id, payload);
   return {
     id: response.id,
-    nombre: response.nombre ?? payload.name,
-    telefono: response.telefono ?? payload.phone,
-    relacion: response.relacion ?? payload.relation,
+    nombre: response.nombre ?? response.name ?? payload.name,
+    telefono: response.telefono ?? response.phone ?? payload.phone,
+    relacion: response.relacion ?? response.relation ?? payload.relation,
   };
 }
 
 export async function toggleOwnerStatus(id: number) {
-  const response: OwnerItem = await httpPatchOwnerAPI(id);
-  return response;
+  const response: OwnerApiItem = await httpPatchOwnerAPI(id);
+  return normalizeOwner(response);
 }
 
 export async function deleteOwner(id: number) {

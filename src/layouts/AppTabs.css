@@ -2,6 +2,10 @@
   position: relative;
 }
 
+.app-tabs__hidden-tab {
+  display: none;
+}
+
 .app-tabs__more-button--active {
   color: var(--ion-color-primary, #3880ff);
 }

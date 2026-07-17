@@ -47,7 +47,6 @@ function normalizeUserListResponse(response: UserListResponse) {
 function normalizeUser(user: UserApiItem): UserItem {
   return {
     id: user.id,
-    username: user.username ?? "",
     firstName: user.firstName ?? user.names ?? "",
     lastName: user.lastName ?? user.lastNames ?? "",
     email: user.email,

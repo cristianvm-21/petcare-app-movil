@@ -20,11 +20,13 @@ import {
 } from "ionicons/icons";
 import React, { useEffect, useMemo, useState } from "react";
 import AppHeader from "../../components/AppHeader/AppHeader";
+import { CreateOwnerRequest } from "../../contracts/ownerContract";
 import {
   CreateUserRequest,
   UpdateUserRequest,
   UserItem,
 } from "../../contracts/userContract";
+import { createOwner, findAllOwners } from "../../services/ownerService";
 import {
   createUser,
   deleteUser,
@@ -33,6 +35,7 @@ import {
   updateUser,
 } from "../../services/userService";
 import { UserRole } from "../../types/userRole";
+import { useHistory, useLocation } from "react-router-dom";
 import "./Users.css";
 
 const roleOptions: UserRole[] = [
@@ -43,7 +46,6 @@ const roleOptions: UserRole[] = [
 ];
 
 const initialFormData: CreateUserRequest = {
-  username: "",
   password: "",
   firstName: "",
   lastName: "",
@@ -52,11 +54,33 @@ const initialFormData: CreateUserRequest = {
   role: "",
 };
 
+const initialOwnerExtraData = {
+  dni: "",
+  address: "",
+};
+
 function getFullName(user: UserItem) {
   return `${user.firstName} ${user.lastName}`.trim();
 }
 
+function getRoleLabel(role: UserRole) {
+  return role === "DUENO" ? "DUEÑO" : role;
+}
+
+function matchesOwnerUser(owner: { nombre: string; apellido: string; email: string }, user: UserItem) {
+  const matchesEmail =
+    owner.email.trim().length > 0 &&
+    owner.email.toLowerCase() === user.email.toLowerCase();
+  const matchesName =
+    owner.nombre.toLowerCase() === user.firstName.toLowerCase() &&
+    owner.apellido.toLowerCase() === user.lastName.toLowerCase();
+
+  return matchesEmail || matchesName;
+}
+
 const Users: React.FC = () => {
+  const history = useHistory();
+  const location = useLocation();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [listSource, setListSource] = useState<"general" | "veterinarians">(
     "general",
@@ -73,6 +97,7 @@ const Users: React.FC = () => {
   const [isSubmittingAction, setIsSubmittingAction] = useState<number | null>(null);
   const [formError, setFormError] = useState("");
   const [formData, setFormData] = useState<CreateUserRequest>(initialFormData);
+  const [ownerExtraData, setOwnerExtraData] = useState(initialOwnerExtraData);
 
   async function loadUsers() {
     try {
@@ -101,6 +126,25 @@ const Users: React.FC = () => {
     loadUsers();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const shouldCreateOwner = params.get("crearDueno") === "true";
+
+    if (!shouldCreateOwner) {
+      return;
+    }
+
+    setFormError("");
+    setEditingUserId(null);
+    setFormData({
+      ...initialFormData,
+      role: "DUENO",
+    });
+    setOwnerExtraData(initialOwnerExtraData);
+    setIsFormVisible(true);
+    history.replace("/app/usuarios");
+  }, [history, location.search]);
+
   function updateField<K extends keyof CreateUserRequest>(
     field: K,
     value: CreateUserRequest[K],
@@ -111,10 +155,22 @@ const Users: React.FC = () => {
     }));
   }
 
+  function updateOwnerExtraField<
+    K extends keyof typeof initialOwnerExtraData,
+  >(field: K, value: (typeof initialOwnerExtraData)[K]) {
+    setOwnerExtraData((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  const isOwnerForm = formData.role === "DUENO";
+
   function resetForm() {
     setEditingUserId(null);
     setFormError("");
     setFormData(initialFormData);
+    setOwnerExtraData(initialOwnerExtraData);
     setIsFormVisible(false);
   }
 
@@ -122,7 +178,6 @@ const Users: React.FC = () => {
     event.preventDefault();
 
     if (
-      !formData.username.trim() ||
       !formData.password.trim() ||
       !formData.firstName.trim() ||
       !formData.lastName.trim() ||
@@ -134,15 +189,50 @@ const Users: React.FC = () => {
       return;
     }
 
+    if (
+      editingUserId === null &&
+      isOwnerForm &&
+      (!ownerExtraData.dni.trim() || !ownerExtraData.address.trim())
+    ) {
+      setFormError("Completa DNI y dirección para registrar al dueño.");
+      return;
+    }
+
     try {
       setIsSaving(true);
       setFormError("");
 
+      const payload = {
+        ...formData,
+      };
+
       if (editingUserId !== null) {
-        await updateUser(editingUserId, formData as UpdateUserRequest);
+        await updateUser(editingUserId, payload as UpdateUserRequest);
         await loadUsers();
       } else {
-        const createdUser = await createUser(formData);
+        const createdUser = await createUser(payload);
+
+        if (payload.role === "DUENO") {
+          const ownerPayload: CreateOwnerRequest = {
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+            email: payload.email,
+            password: payload.password,
+            phone: payload.phone,
+            dni: ownerExtraData.dni.trim(),
+            address: ownerExtraData.address.trim(),
+            userId: createdUser.id,
+          };
+
+          try {
+            await createOwner(ownerPayload);
+          } catch (ownerError) {
+            console.error("No se pudo registrar el dueño asociado:", ownerError);
+            throw new Error(
+              "Se creó el usuario, pero falló el registro del dueño asociado.",
+            );
+          }
+        }
 
         if (!supportsFullCrud && createdUser.role !== "VETERINARIO") {
           setUsers((current) => [createdUser, ...current]);
@@ -164,19 +254,41 @@ const Users: React.FC = () => {
     }
   }
 
-  function handleStartEdit(user: UserItem) {
-    setEditingUserId(user.id);
-    setFormError("");
-    setFormData({
-      username: user.username,
-      password: "",
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-    });
-    setIsFormVisible(true);
+  async function handleStartEdit(user: UserItem) {
+    try {
+      setIsSubmittingAction(user.id);
+      setFormError("");
+      setFormData({
+        password: "",
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      });
+
+      if (user.role === "DUENO") {
+        const owners = await findAllOwners();
+        const matchedOwner = owners.find((owner) => matchesOwnerUser(owner, user));
+
+        setOwnerExtraData({
+          dni: matchedOwner?.dni ?? "",
+          address: matchedOwner?.direccion ?? "",
+        });
+      } else {
+        setOwnerExtraData(initialOwnerExtraData);
+      }
+
+      setEditingUserId(user.id);
+      setIsFormVisible(true);
+    } catch (err) {
+      console.error("No se pudo cargar la información adicional del dueño:", err);
+      setOwnerExtraData(initialOwnerExtraData);
+      setEditingUserId(user.id);
+      setIsFormVisible(true);
+    } finally {
+      setIsSubmittingAction(null);
+    }
   }
 
   async function handleToggleStatus(user: UserItem) {
@@ -195,7 +307,7 @@ const Users: React.FC = () => {
 
   async function handleDeleteUser(user: UserItem) {
     const confirmed = window.confirm(
-      `¿Deseas eliminar al usuario "${user.username}"?`,
+      `¿Deseas eliminar al usuario "${getFullName(user)}"?`,
     );
 
     if (!confirmed) {
@@ -225,7 +337,6 @@ const Users: React.FC = () => {
     return users.filter((user) => {
       const matchesQuery =
         loweredQuery.length === 0 ||
-        user.username.toLowerCase().includes(loweredQuery) ||
         getFullName(user).toLowerCase().includes(loweredQuery) ||
         user.email.toLowerCase().includes(loweredQuery) ||
         user.phone.toLowerCase().includes(loweredQuery);
@@ -298,7 +409,7 @@ const Users: React.FC = () => {
                   )}
                 </div>
 
-                <IonButton
+              <IonButton
                   aria-label="Cerrar formulario"
                   className="users-form-card__close"
                   fill="clear"
@@ -313,11 +424,12 @@ const Users: React.FC = () => {
                   <IonInput
                     className="users-field"
                     fill="outline"
-                    label="Username"
+                    label="Correo"
                     labelPlacement="stacked"
-                    value={formData.username}
+                    type="email"
+                    value={formData.email}
                     onIonInput={(event) =>
-                      updateField("username", String(event.detail.value ?? ""))
+                      updateField("email", String(event.detail.value ?? ""))
                     }
                   />
 
@@ -358,23 +470,14 @@ const Users: React.FC = () => {
                   <IonInput
                     className="users-field"
                     fill="outline"
-                    label="Correo"
-                    labelPlacement="stacked"
-                    type="email"
-                    value={formData.email}
-                    onIonInput={(event) =>
-                      updateField("email", String(event.detail.value ?? ""))
-                    }
-                  />
-
-                  <IonInput
-                    className="users-field"
-                    fill="outline"
                     label="Teléfono"
                     labelPlacement="stacked"
                     value={formData.phone}
                     onIonInput={(event) =>
-                      updateField("phone", String(event.detail.value ?? ""))
+                      updateField(
+                        "phone",
+                        String(event.detail.value ?? "").slice(0, 9),
+                      )
                     }
                   />
 
@@ -389,10 +492,42 @@ const Users: React.FC = () => {
                   >
                     {roleOptions.map((role) => (
                       <IonSelectOption key={role} value={role}>
-                        {role}
+                        {getRoleLabel(role)}
                       </IonSelectOption>
                     ))}
                   </IonSelect>
+
+                  {isOwnerForm && (
+                    <>
+                      <IonInput
+                        className="users-field"
+                        fill="outline"
+                        label="DNI"
+                        labelPlacement="stacked"
+                        value={ownerExtraData.dni}
+                        onIonInput={(event) =>
+                          updateOwnerExtraField(
+                            "dni",
+                            String(event.detail.value ?? "").slice(0, 8),
+                          )
+                        }
+                      />
+
+                      <IonInput
+                        className="users-field users-field--full"
+                        fill="outline"
+                        label="Dirección"
+                        labelPlacement="stacked"
+                        value={ownerExtraData.address}
+                        onIonInput={(event) =>
+                          updateOwnerExtraField(
+                            "address",
+                            String(event.detail.value ?? ""),
+                          )
+                        }
+                      />
+                    </>
+                  )}
                 </div>
 
                 {formError && (
@@ -423,7 +558,7 @@ const Users: React.FC = () => {
               <IonInput
                 className="users-field"
                 fill="outline"
-                placeholder="Buscar por username, nombre, correo o teléfono..."
+                placeholder="Buscar por nombre, correo o teléfono..."
                 value={query}
                 onIonInput={(event) => setQuery(String(event.detail.value ?? ""))}
               />
@@ -452,7 +587,7 @@ const Users: React.FC = () => {
                 <IonSelectOption value="todos">Todos los roles</IonSelectOption>
                 {roleOptions.map((role) => (
                   <IonSelectOption key={role} value={role}>
-                    {role}
+                    {getRoleLabel(role)}
                   </IonSelectOption>
                 ))}
               </IonSelect>
@@ -476,7 +611,6 @@ const Users: React.FC = () => {
                     <thead>
                       <tr>
                         <th>#</th>
-                        <th>Username</th>
                         <th>Nombre Completo</th>
                         <th>Correo</th>
                         <th>Teléfono</th>
@@ -489,11 +623,10 @@ const Users: React.FC = () => {
                       {filteredUsers.map((user, index) => (
                         <tr key={user.id}>
                           <td>{index + 1}</td>
-                          <td>{user.username}</td>
                           <td>{getFullName(user)}</td>
                           <td>{user.email}</td>
                           <td>{user.phone}</td>
-                          <td>{user.role}</td>
+                          <td>{getRoleLabel(user.role)}</td>
                           <td>
                             <span
                               className={`users-status ${user.active ? "users-status--active" : "users-status--paused"}`}
@@ -555,11 +688,10 @@ const Users: React.FC = () => {
                         </span>
                       </div>
 
-                      <h2>{user.username}</h2>
-                      <p>{getFullName(user)}</p>
+                      <h2>{getFullName(user)}</h2>
 
                       <div className="users-mobile-card__meta">
-                        <span>{user.role}</span>
+                        <span>{getRoleLabel(user.role)}</span>
                         <strong>{user.phone}</strong>
                       </div>
 

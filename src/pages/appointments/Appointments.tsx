@@ -311,7 +311,7 @@ function getAppointmentVeterinarianName(
     return `Veterinario #${appointment.veterinario.id}`;
   }
 
-  return getVetFullName(veterinarian) || veterinarian.username;
+  return getVetFullName(veterinarian) || veterinarian.email;
 }
 
 function getAppointmentCreatorName(appointment: AppointmentItem) {
