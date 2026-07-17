@@ -1,7 +1,9 @@
 import { springbootApi } from "./axiosHttp";
 import { PageRequest } from "../contracts/pageRequestContract";
 import {
+  AppointmentAvailabilityApiItem,
   AppointmentAvailabilityItem,
+  AppointmentAvailabilityResponse,
   AppointmentItem,
   AppointmentResponse,
   CreateAppointmentRequest,
@@ -69,7 +71,9 @@ export async function httpGetAppointmentAvailabilityAPI(params: {
   servicioId: number;
   fecha: string;
 }) {
-  const response = await springbootApi.get<AppointmentAvailabilityItem[]>(
+  const response = await springbootApi.get<
+    AppointmentAvailabilityItem[] | AppointmentAvailabilityResponse
+  >(
     "citas/disponibilidad",
     {
       params,

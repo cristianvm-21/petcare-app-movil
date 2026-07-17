@@ -121,7 +121,23 @@
   --border-color: rgba(118, 154, 197, 0.24);
   --border-radius: 16px;
   --highlight-color-focused: var(--app-color-celeste);
+  --color: #12314d;
+  --placeholder-color: rgba(18, 49, 77, 0.5);
   flex: 1;
+}
+
+.services-filter ion-label {
+  color: #12314d !important;
+}
+
+.services-filter ion-input,
+.services-filter ion-textarea {
+  --color: #12314d;
+}
+
+.services-filter ion-input::part(native),
+.services-filter ion-textarea::part(native) {
+  color: #12314d;
 }
 
 .services-filter--select {

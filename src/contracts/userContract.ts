@@ -37,6 +37,25 @@ export interface UserResponse {
 
 export type UserListResponse = UserResponse | UserItem[];
 
+export interface UserApiItem {
+  id: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone?: string;
+  role?: UserRole;
+  active?: boolean;
+  names?: string;
+  lastNames?: string;
+  rol?: UserRole;
+}
+
+export interface UserApiResponse {
+  content: UserApiItem[];
+  page?: UserPageInfo;
+}
+
 export interface UpdateUserStatusRequest {
   active: boolean;
 }

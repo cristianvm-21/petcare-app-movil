@@ -80,12 +80,7 @@ const VetServices: React.FC = () => {
     const normalizedQuery = query.trim();
     const filters = {
       nombre: normalizedQuery || undefined,
-      soloActivos:
-        statusFilter === "activos"
-          ? true
-          : statusFilter === "inactivos"
-            ? false
-            : undefined,
+      soloActivos: statusFilter === "activos" ? true : undefined,
     };
 
     void loadServices(filters);
@@ -195,7 +190,17 @@ const VetServices: React.FC = () => {
     }
   }
 
-  const filteredServices = useMemo(() => services, [services]);
+  const filteredServices = useMemo(() => {
+    if (statusFilter === "inactivos") {
+      return services.filter((service) => !service.activo);
+    }
+
+    if (statusFilter === "activos") {
+      return services.filter((service) => service.activo);
+    }
+
+    return services;
+  }, [services, statusFilter]);
 
   return (
     <IonPage>

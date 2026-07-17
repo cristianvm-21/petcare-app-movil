@@ -125,6 +125,10 @@
   --background: #fff;
   --border-color: rgba(118, 154, 197, 0.24);
   --border-radius: 16px;
+  --color: #12314d;
+  --placeholder-color: rgba(18, 49, 77, 0.62);
+  --label-color: #12314d;
+  --highlight-color: var(--app-color-celeste);
   --highlight-color-focused: var(--app-color-celeste);
   flex: 1;
 }
@@ -136,6 +140,79 @@
   border: 1px solid rgba(118, 154, 197, 0.24);
   border-radius: 16px;
   background: #fff;
+  color: #12314d;
+}
+
+.appointments-datetime-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border: 1px solid rgba(118, 154, 197, 0.24);
+  border-radius: 16px;
+  background: #fff;
+  color: #12314d;
+  text-align: left;
+}
+
+.appointments-datetime-trigger__label {
+  font-size: 0.82rem;
+  color: #12314d;
+}
+
+.appointments-datetime-trigger__value {
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(18, 49, 77, 0.82);
+}
+
+.appointments-datetime-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.appointments-datetime-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.appointments-datetime-modal__header h2 {
+  margin: 0;
+  color: #12314d;
+  font-size: 1.2rem;
+}
+
+.appointments-field ion-input,
+.appointments-field ion-textarea,
+.appointments-field ion-select {
+  --color: #12314d;
+  --placeholder-color: rgba(18, 49, 77, 0.62);
+}
+
+.appointments-field.ion-valid,
+.appointments-field.ion-invalid,
+.appointments-field.ion-touched,
+.appointments-field.ion-focused {
+  --color: #12314d;
+  --label-color: #12314d;
+}
+
+.appointments-field .label-text-wrapper,
+.appointments-field .native-input,
+.appointments-field textarea,
+.appointments-field input {
+  color: #12314d !important;
+}
+
+.appointments-field--select::part(label),
+.appointments-field ion-input::part(label),
+.appointments-field ion-textarea::part(label) {
   color: #12314d;
 }
 
@@ -191,6 +268,21 @@
   font-weight: 700;
   background: rgba(191, 214, 248, 0.4);
   color: #12314d;
+}
+
+.appointments-status--cancelled {
+  background: #fce2e3;
+  color: #a1282d;
+}
+
+.appointments-status--confirmed {
+  background: #dcecff;
+  color: #1250a8;
+}
+
+.appointments-status--attended {
+  background: #dcf6e8;
+  color: #13683b;
 }
 
 .appointments-actions {

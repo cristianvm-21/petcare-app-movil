@@ -4,7 +4,7 @@ import {
   CreateVetServiceRequest,
   GetVetServicesFilters,
   UpdateVetServiceRequest,
-  VetServiceItem,
+  VetServiceApiItem,
   VetServiceResponse,
 } from "../contracts/vetServiceContract";
 
@@ -26,14 +26,14 @@ export async function httpGetVetServicesAPI(params?: GetVetServicesParams) {
 }
 
 export async function httpGetVetServiceByIdAPI(id: number) {
-  const response = await springbootApi.get<VetServiceItem>(`servicios/${id}`);
+  const response = await springbootApi.get<VetServiceApiItem>(`servicios/${id}`);
   return response.data;
 }
 
 export async function httpPostVetServiceAPI(
   payload: CreateVetServiceRequest,
 ) {
-  const response = await springbootApi.post<VetServiceItem>("servicios", payload);
+  const response = await springbootApi.post<VetServiceApiItem>("servicios", payload);
   return response.data;
 }
 
@@ -41,7 +41,7 @@ export async function httpPutVetServiceAPI(
   id: number,
   payload: UpdateVetServiceRequest,
 ) {
-  const response = await springbootApi.put<VetServiceItem>(
+  const response = await springbootApi.put<VetServiceApiItem>(
     `servicios/${id}`,
     payload,
   );
@@ -49,7 +49,7 @@ export async function httpPutVetServiceAPI(
 }
 
 export async function httpPatchVetServiceAPI(id: number) {
-  const response = await springbootApi.patch<VetServiceItem>(`servicios/${id}/toggle`);
+  const response = await springbootApi.patch<VetServiceApiItem>(`servicios/${id}/toggle`);
   return response.data;
 }
 

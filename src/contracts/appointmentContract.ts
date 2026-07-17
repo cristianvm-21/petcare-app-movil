@@ -47,6 +47,90 @@ export interface AppointmentResponse {
   page?: AppointmentPageInfo;
 }
 
+export interface AppointmentApiPetItem {
+  id: number;
+  nombre?: string;
+  especie?: string;
+  raza?: string;
+  sexo?: string;
+  fechaNacimiento?: string;
+  microchip?: string;
+  condicionReproductiva?: string;
+  alergias?: string;
+  enfermedadesCronicas?: string;
+  alertasMedicas?: string;
+  activo?: boolean;
+  name?: string;
+  species?: string;
+  breed?: string;
+  gender?: string;
+  birthDate?: string;
+  reproductiveCondition?: string;
+  allergies?: string;
+  chronicDiseases?: string;
+  medicalAlerts?: string;
+  active?: boolean;
+}
+
+export interface AppointmentApiUserItem {
+  id: number;
+  username: string;
+  password?: string;
+  nombre?: string;
+  apellido?: string;
+  email: string;
+  telefono?: string;
+  rol?: UserRole;
+  activo?: boolean;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  role?: UserRole;
+  active?: boolean;
+}
+
+export interface AppointmentApiServiceItem {
+  id: number;
+  nombre?: string;
+  descripcion?: string;
+  duracionMinutos?: number;
+  costoReferencial?: number;
+  activo?: boolean;
+  name?: string;
+  description?: string;
+  durationMinutes?: number;
+  referenceCost?: number;
+  active?: boolean;
+}
+
+export interface AppointmentApiItem {
+  id: number;
+  mascota?: AppointmentApiPetItem;
+  veterinario?: AppointmentApiUserItem;
+  servicio?: AppointmentApiServiceItem;
+  fechaHora?: string;
+  estado?: string;
+  notas?: string;
+  creadoPor?: AppointmentApiUserItem;
+  creadoEn?: string;
+  actualizadoEn?: string;
+  petId?: number;
+  veterinarianId?: number;
+  serviceId?: number;
+  dateTime?: string;
+  status?: string;
+  notes?: string;
+  createdBy?: AppointmentApiUserItem | number;
+  createdAt?: string;
+  updatedBy?: AppointmentApiUserItem | number | null;
+  updatedAt?: string;
+}
+
+export interface AppointmentApiResponse {
+  content: AppointmentApiItem[];
+  page?: AppointmentPageInfo;
+}
+
 export interface ReprogramAppointmentRequest {
   dateTime: string;
 }
@@ -66,4 +150,16 @@ export interface GetAppointmentsFilters {
 
 export interface AppointmentAvailabilityItem {
   dateTime: string;
+}
+
+export type AppointmentAvailabilityApiItem =
+  | AppointmentAvailabilityItem
+  | string;
+
+export interface AppointmentAvailabilityResponse {
+  content?: AppointmentAvailabilityApiItem[];
+  availableSlots?: AppointmentAvailabilityApiItem[];
+  veterinarianId?: number;
+  date?: string;
+  durationMinutes?: number;
 }

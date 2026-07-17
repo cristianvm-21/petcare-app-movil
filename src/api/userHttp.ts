@@ -5,6 +5,8 @@ import {
   CreateUserRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,
+  UserApiItem,
+  UserApiResponse,
   UserItem,
   UserListResponse,
   UserResponse,
@@ -42,15 +44,31 @@ function normalizeUserListResponse(response: UserListResponse) {
   return response.content ?? [];
 }
 
+function normalizeUser(user: UserApiItem): UserItem {
+  return {
+    id: user.id,
+    username: user.username ?? "",
+    firstName: user.firstName ?? user.names ?? "",
+    lastName: user.lastName ?? user.lastNames ?? "",
+    email: user.email,
+    phone: user.phone ?? "",
+    role: user.role ?? user.rol ?? "ASISTENTE",
+    active: user.active ?? false,
+  };
+}
+
 export async function httpGetUserAPI(params?: GetUsersParams) {
-  const response = await springbootApi.get<UserResponse>("usuarios", {
+  const response = await springbootApi.get<UserApiResponse>("usuarios", {
     params: {
       ...userPageRequest,
       ...params,
     },
   });
 
-  return response.data;
+  return {
+    ...response.data,
+    content: (response.data.content ?? []).map(normalizeUser),
+  } satisfies UserResponse;
 }
 
 export async function httpGetVeterinariansAPI(options?: {
@@ -70,7 +88,18 @@ export async function httpGetVeterinariansAPI(options?: {
     },
   });
 
-  return response.data;
+  const responseData = response.data;
+
+  if (Array.isArray(responseData)) {
+    return responseData.map((user) => normalizeUser(user as UserApiItem));
+  }
+
+  return {
+    ...responseData,
+    content: (responseData.content ?? []).map((user) =>
+      normalizeUser(user as UserApiItem),
+    ),
+  } satisfies UserResponse;
 }
 
 export async function httpGetUsersCatalogAPI(
@@ -106,27 +135,27 @@ export async function httpGetUsersCatalogAPI(
 }
 
 export async function httpPostUserAPI(payload: CreateUserRequest) {
-  const response = await springbootApi.post<UserItem>("usuarios", payload);
-  return response.data;
+  const response = await springbootApi.post<UserApiItem>("usuarios", payload);
+  return normalizeUser(response.data);
 }
 
 export async function httpPutUserLegacyAPI(
   id: number,
   payload: UpdateUserRequest,
 ) {
-  const response = await springbootApi.put<UserItem>(`usuarios/${id}`, payload);
-  return response.data;
+  const response = await springbootApi.put<UserApiItem>(`usuarios/${id}`, payload);
+  return normalizeUser(response.data);
 }
 
 export async function httpPatchUserStatusAPI(
   id: number,
   payload: UpdateUserStatusRequest,
 ) {
-  const response = await springbootApi.patch<UserItem>(
+  const response = await springbootApi.patch<UserApiItem>(
     `usuarios/${id}/estado`,
     payload,
   );
-  return response.data;
+  return normalizeUser(response.data);
 }
 
 export async function httpDeleteUserLegacyAPI(id: number) {
