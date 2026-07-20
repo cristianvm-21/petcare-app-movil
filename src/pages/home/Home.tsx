@@ -12,7 +12,6 @@ import {
   pawOutline,
   peopleOutline,
   pulseOutline,
-  sparklesOutline,
   timeOutline,
 } from "ionicons/icons";
 import { useEffect, useMemo, useState } from "react";
@@ -333,15 +332,11 @@ const Home: React.FC = () => {
             <article className="home-panel home-panel--hero">
               <div className="home-hero__copy">
                 <div className="home-hero__eyebrow">
-                  <IonIcon icon={sparklesOutline} />
                   <span>{heroSummary.roleLabel}</span>
                 </div>
 
                 <h1>Panel del negocio</h1>
-                <p>
-                  Un resumen visual para seguir citas, catálogo y actividad de la
-                  veterinaria desde una sola pantalla.
-                </p>
+                <p>Dashboard Veterinaria</p>
 
                 <div className="home-hero__chips">
                   <span>{dashboardData.appointments.length} citas registradas</span>

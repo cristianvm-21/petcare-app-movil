@@ -38,7 +38,6 @@ const Login = () => {
       setError("");
 
       const response = await login(email, password);
-      console.log("Login correcto:", response);
       history.replace(DEFAULT_PRIVATE_ROUTE);
     } catch (err) {
       console.error("Error al iniciar sesión:", err);
