@@ -14,11 +14,12 @@ import { eye, eyeOff } from "ionicons/icons";
 import { Link, useHistory } from "react-router-dom";
 import { DEFAULT_PRIVATE_ROUTE } from "../../auth/session";
 import { login } from "../../services/authService";
+import { getHttpErrorMessage } from "../../utils/httpErrorMessage";
 import "./Login.css";
 
 const Login = () => {
   const history = useHistory();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,8 +28,8 @@ const Login = () => {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!username.trim() || !password.trim()) {
-      setError("Completa usuario y contraseña.");
+    if (!email.trim() || !password.trim()) {
+      setError("Completa correo y contraseña.");
       return;
     }
 
@@ -36,12 +37,17 @@ const Login = () => {
       setIsSubmitting(true);
       setError("");
 
-      const response = await login(username, password);
-      console.log("Login correcto:", response);
+      const response = await login(email, password);
       history.replace(DEFAULT_PRIVATE_ROUTE);
     } catch (err) {
       console.error("Error al iniciar sesión:", err);
-      setError("No se pudo iniciar sesión. Verifica tus credenciales.");
+      setError(
+        getHttpErrorMessage(
+          err,
+          "No se pudo iniciar sesión.",
+          "Credenciales inválidas.",
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -56,12 +62,15 @@ const Login = () => {
               <legend className="login-legend">Inicia Sesión</legend>
               <div className="login-fields">
                 <IonItem className="login-item" lines="inset">
-                  <IonLabel position="stacked">Usuario</IonLabel>
+                  <IonLabel position="stacked">Correo</IonLabel>
                   <IonInput
-                    type="text"
-                    name="username"
-                    value={username}
-                    onIonInput={(e) => setUsername(String(e.detail.value ?? ""))}
+                    type="email"
+                    name="email"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
+                    value={email}
+                    onIonInput={(e) => setEmail(String(e.detail.value ?? ""))}
                   />
                 </IonItem>
 
@@ -70,6 +79,9 @@ const Login = () => {
                   <IonInput
                     type={showPassword ? "text" : "password"}
                     name="password"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
                     value={password}
                     onIonInput={(e) => setPassword(String(e.detail.value ?? ""))}
                   />
@@ -82,7 +94,7 @@ const Login = () => {
                     }
                     onClick={() => setShowPassword((current) => !current)}
                   >
-                    <IonIcon icon={showPassword ? eyeOff : eye} />
+                    <IonIcon icon={showPassword ? eye : eyeOff} />
                   </IonButton>
                 </IonItem>
               </div>

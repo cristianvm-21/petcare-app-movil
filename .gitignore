@@ -13,7 +13,11 @@
 
 # misc
 .DS_Store
+.env
 .env.local
+.env.*
+.env*.local
+!.env.example
 .env.development.local
 .env.test.local
 .env.production.local
@@ -31,3 +35,6 @@ yarn-error.log*
 .eslintcache
 
 mi-app-debug.apk
+petcare-app.apk
+
+.agents

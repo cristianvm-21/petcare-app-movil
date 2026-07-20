@@ -7,6 +7,15 @@ export interface VetServiceItem {
   activo: boolean;
 }
 
+export interface VetServiceApiItem {
+  id: number;
+  name: string;
+  description: string;
+  durationMinutes: number;
+  referenceCost: number;
+  active: boolean;
+}
+
 export interface CreateVetServiceRequest {
   name: string;
   description: string;
@@ -17,9 +26,14 @@ export interface CreateVetServiceRequest {
 export type UpdateVetServiceRequest = CreateVetServiceRequest;
 
 export interface VetServiceResponse {
-  content: VetServiceItem[];
+  content: VetServiceApiItem[];
   totalElements?: number;
   totalPages?: number;
   size?: number;
   number?: number;
+}
+
+export interface GetVetServicesFilters {
+  soloActivos?: boolean;
+  nombre?: string;
 }

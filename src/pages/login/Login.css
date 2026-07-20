@@ -39,6 +39,23 @@
   --border-radius: 14px;
   --inner-padding-end: 6px;
   --background: var(--ion-color-step-50, #f7f8fa);
+  --color: #1f2937;
+  --highlight-color-focused: var(--ion-color-primary);
+  --border-color: rgba(31, 41, 55, 0.14);
+}
+
+.login-item ion-label {
+  color: #4b5563 !important;
+}
+
+.login-item ion-input {
+  --color: #111827;
+  --placeholder-color: #6b7280;
+  --placeholder-opacity: 1;
+}
+
+.login-item ion-input::part(native) {
+  color: #111827;
 }
 
 .login-error {

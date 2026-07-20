@@ -1,8 +1,10 @@
 import {
   IonButton,
   IonContent,
+  IonDatetime,
   IonIcon,
   IonInput,
+  IonModal,
   IonPage,
   IonSelect,
   IonSelectOption,
@@ -10,6 +12,7 @@ import {
   IonText,
   IonTextarea,
 } from "@ionic/react";
+import { AxiosError } from "axios";
 import {
   addOutline,
   calendarOutline,
@@ -22,7 +25,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import AppHeader from "../../components/AppHeader/AppHeader";
 import {
   AppointmentItem,
+  AppointmentAvailabilityItem,
   CreateAppointmentRequest,
+  GetAppointmentsFilters,
   ReprogramAppointmentRequest,
   UpdateAppointmentStatusRequest,
 } from "../../contracts/appointmentContract";
@@ -33,6 +38,7 @@ import {
   createAppointment,
   deleteAppointment,
   findAllAppointments,
+  findAppointmentAvailability,
   findAppointmentById,
   reprogramAppointment,
   updateAppointmentStatus,
@@ -50,25 +56,300 @@ const initialFormData: CreateAppointmentRequest = {
   notes: "",
 };
 
+const APPOINTMENT_TIME_ZONE = "America/Lima";
+const APPOINTMENT_UTC_OFFSET = "-05:00";
+
+function hasExplicitTimeZone(value: string) {
+  return /(?:Z|[+-]\d{2}:\d{2})$/i.test(value.trim());
+}
+
+function normalizeDateTimeWithAppointmentOffset(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return "";
+  }
+
+  return hasExplicitTimeZone(trimmedValue)
+    ? trimmedValue
+    : `${trimmedValue}${APPOINTMENT_UTC_OFFSET}`;
+}
+
+function getAppointmentDateParts(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APPOINTMENT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+    hour: getPart("hour"),
+    minute: getPart("minute"),
+    second: getPart("second"),
+  };
+}
+
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("es-PE", {
+  return new Date(normalizeDateTimeWithAppointmentOffset(value)).toLocaleString("es-PE", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: APPOINTMENT_TIME_ZONE,
   });
 }
 
+function isTimeOnlySlot(value: string) {
+  return /^\d{2}:\d{2}(:\d{2})?$/.test(value.trim());
+}
+
+function buildDateTimeFromSlot(slotValue: string, selectedDate: string) {
+  const trimmedSlot = slotValue.trim();
+
+  if (!trimmedSlot) {
+    return "";
+  }
+
+  if (isTimeOnlySlot(trimmedSlot)) {
+    const normalizedTime =
+      trimmedSlot.length === 5 ? `${trimmedSlot}:00` : trimmedSlot;
+    return `${selectedDate}T${normalizedTime}`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(trimmedSlot)) {
+    return trimmedSlot.length === 16 ? `${trimmedSlot}:00` : trimmedSlot;
+  }
+
+  return trimmedSlot;
+}
+
+function formatTimeOnlySlot(value: string) {
+  const match = value.trim().match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+
+  if (!match) {
+    return value;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  const suffix = hours >= 12 ? "p. m." : "a. m.";
+  const normalizedHour = hours % 12 === 0 ? 12 : hours % 12;
+
+  return `${normalizedHour}:${minutes} ${suffix}`;
+}
+
+function formatAvailableSlot(slotValue: string, selectedDate: string) {
+  const normalizedValue = buildDateTimeFromSlot(slotValue, selectedDate);
+
+  if (!normalizedValue) {
+    return slotValue;
+  }
+
+  if (isTimeOnlySlot(slotValue)) {
+    return formatTimeOnlySlot(slotValue);
+  }
+
+  const parsedDate = new Date(normalizedValue);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return slotValue;
+  }
+
+  return formatDateTime(normalizedValue);
+}
+
 function toApiDateTime(value: string) {
-  return new Date(value).toISOString();
+  if (!value.trim()) {
+    return "";
+  }
+
+  if (!hasExplicitTimeZone(value)) {
+    return value.length === 16 ? `${value}:00` : value;
+  }
+
+  const parts = getAppointmentDateParts(value);
+
+  if (!parts) {
+    return value;
+  }
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 function toInputDateTime(value: string) {
-  const date = new Date(value);
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
+  const parts = getAppointmentDateParts(value);
+
+  if (!parts) {
+    return "";
+  }
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function toDatetimeValue(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  if (!hasExplicitTimeZone(value)) {
+    return value;
+  }
+
+  return new Date(value).toISOString();
+}
+
+function formatDateTimePickerValue(value: string, placeholder: string) {
+  if (!value) {
+    return placeholder;
+  }
+
+  return new Date(normalizeDateTimeWithAppointmentOffset(value)).toLocaleString("es-PE", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: APPOINTMENT_TIME_ZONE,
+  });
+}
+
+function formatDatePickerValue(value: string, placeholder: string) {
+  if (!value) {
+    return placeholder;
+  }
+
+  return new Date(`${value}T00:00:00`).toLocaleDateString("es-PE", {
+    dateStyle: "medium",
+  });
+}
+
+function toDateOnlyValue(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  return `${value}T00:00:00`;
+}
+
+function getAppointmentErrorMessage(error: unknown, fallback: string) {
+  if (!(error instanceof AxiosError)) {
+    return fallback;
+  }
+
+  const backendMessage =
+    (typeof error.response?.data === "object" &&
+      error.response?.data !== null &&
+      "message" in error.response.data &&
+      typeof error.response.data.message === "string" &&
+      error.response.data.message) ||
+    (typeof error.response?.data === "string" ? error.response.data : "");
+
+  if (error.response?.status === 409) {
+    return (
+      backendMessage ||
+      "La cita entra en conflicto con la disponibilidad actual. Elige otro horario."
+    );
+  }
+
+  if (error.response?.status === 400) {
+    return backendMessage || "Los datos de la cita no son válidos.";
+  }
+
+  return backendMessage || fallback;
 }
 
 function getVetFullName(vet: UserItem) {
   return `${vet.firstName} ${vet.lastName}`.trim();
+}
+
+function getAppointmentPetName(appointment: AppointmentItem, pets: PetItem[]) {
+  return (
+    appointment.mascota.nombre ||
+    pets.find((pet) => pet.id === appointment.mascota.id)?.nombre ||
+    `Mascota #${appointment.mascota.id}`
+  );
+}
+
+function getAppointmentServiceName(
+  appointment: AppointmentItem,
+  services: VetServiceItem[],
+) {
+  return (
+    appointment.servicio.nombre ||
+    services.find((service) => service.id === appointment.servicio.id)?.nombre ||
+    `Servicio #${appointment.servicio.id}`
+  );
+}
+
+function getAppointmentVeterinarianName(
+  appointment: AppointmentItem,
+  veterinarians: UserItem[],
+) {
+  const fullName = `${appointment.veterinario.nombre} ${appointment.veterinario.apellido}`.trim();
+
+  if (fullName.length > 0) {
+    return fullName;
+  }
+
+  const veterinarian = veterinarians.find(
+    (vet) => vet.id === appointment.veterinario.id,
+  );
+
+  if (!veterinarian) {
+    return `Veterinario #${appointment.veterinario.id}`;
+  }
+
+  return getVetFullName(veterinarian) || veterinarian.email;
+}
+
+function getAppointmentCreatorName(appointment: AppointmentItem) {
+  const fullName = `${appointment.creadoPor.nombre} ${appointment.creadoPor.apellido}`.trim();
+  return fullName || `Usuario #${appointment.creadoPor.id}`;
+}
+
+function getAppointmentStatusClass(status: string) {
+  switch (status) {
+    case "CANCELADA":
+      return "appointments-status appointments-status--cancelled";
+    case "CONFIRMADA":
+      return "appointments-status appointments-status--confirmed";
+    case "ATENDIDA":
+      return "appointments-status appointments-status--attended";
+    default:
+      return "appointments-status";
+  }
+}
+
+function buildAppointmentFilters(params: {
+  veterinarianFilter: string;
+  serviceFilter: string;
+  statusFilter: string;
+  dateFromFilter: string;
+  dateToFilter: string;
+}): GetAppointmentsFilters {
+  return {
+    veterinarioId:
+      params.veterinarianFilter !== "0"
+        ? Number(params.veterinarianFilter)
+        : undefined,
+    servicioId:
+      params.serviceFilter !== "0" ? Number(params.serviceFilter) : undefined,
+    estado: params.statusFilter !== "todos" ? params.statusFilter : undefined,
+    fechaDesde: params.dateFromFilter || undefined,
+    fechaHasta: params.dateToFilter || undefined,
+  };
 }
 
 const Appointments: React.FC = () => {
@@ -77,7 +358,11 @@ const Appointments: React.FC = () => {
   const [veterinarians, setVeterinarians] = useState<UserItem[]>([]);
   const [services, setServices] = useState<VetServiceItem[]>([]);
   const [query, setQuery] = useState("");
+  const [veterinarianFilter, setVeterinarianFilter] = useState("0");
+  const [serviceFilter, setServiceFilter] = useState("0");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -91,14 +376,20 @@ const Appointments: React.FC = () => {
   const [isUpdatingAppointment, setIsUpdatingAppointment] = useState(false);
   const [editDateTime, setEditDateTime] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [selectedAppointmentDate, setSelectedAppointmentDate] = useState("");
+  const [availableSlots, setAvailableSlots] = useState<AppointmentAvailabilityItem[]>([]);
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [isCreateDateModalOpen, setIsCreateDateModalOpen] = useState(false);
+  const [isEditDateModalOpen, setIsEditDateModalOpen] = useState(false);
   const detailSectionRef = useRef<HTMLElement | null>(null);
 
-  async function loadAppointments() {
+  async function loadAppointments(filters?: GetAppointmentsFilters) {
     try {
       setIsLoading(true);
       setError("");
 
-      const appointmentsData = await findAllAppointments();
+      const appointmentsData = await findAllAppointments(filters);
       setAppointments(appointmentsData);
     } catch (err) {
       console.error("No se pudieron cargar las citas:", err);
@@ -126,9 +417,57 @@ const Appointments: React.FC = () => {
   }
 
   useEffect(() => {
-    loadAppointments();
-    loadFormDependencies();
+    void loadFormDependencies();
   }, []);
+
+  useEffect(() => {
+    const filters = buildAppointmentFilters({
+      veterinarianFilter,
+      serviceFilter,
+      statusFilter,
+      dateFromFilter,
+      dateToFilter,
+    });
+
+    void loadAppointments(filters);
+  }, [veterinarianFilter, serviceFilter, statusFilter, dateFromFilter, dateToFilter]);
+
+  useEffect(() => {
+    async function loadAvailability() {
+      if (
+        formData.veterinarianId <= 0 ||
+        formData.serviceId <= 0 ||
+        !selectedAppointmentDate.trim()
+      ) {
+        setAvailableSlots([]);
+        setAvailabilityError("");
+        return;
+      }
+
+      try {
+        setIsAvailabilityLoading(true);
+        setAvailabilityError("");
+
+        const slots = await findAppointmentAvailability({
+          veterinarioId: formData.veterinarianId,
+          servicioId: formData.serviceId,
+          fecha: selectedAppointmentDate,
+        });
+
+        setAvailableSlots(slots);
+      } catch (err) {
+        console.error("No se pudo consultar la disponibilidad:", err);
+        setAvailableSlots([]);
+        setAvailabilityError(
+          "No se pudo consultar la disponibilidad del veterinario.",
+        );
+      } finally {
+        setIsAvailabilityLoading(false);
+      }
+    }
+
+    void loadAvailability();
+  }, [formData.veterinarianId, formData.serviceId, selectedAppointmentDate]);
 
   useEffect(() => {
     if (!selectedAppointment && !isDetailLoading) {
@@ -149,6 +488,7 @@ const Appointments: React.FC = () => {
     field: K,
     value: CreateAppointmentRequest[K],
   ) {
+    setFormError("");
     setFormData((current) => ({
       ...current,
       [field]: value,
@@ -157,8 +497,12 @@ const Appointments: React.FC = () => {
 
   function resetForm() {
     setFormData(initialFormData);
+    setSelectedAppointmentDate("");
+    setAvailableSlots([]);
+    setAvailabilityError("");
     setFormError("");
     setIsFormVisible(false);
+    setIsCreateDateModalOpen(false);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -170,7 +514,9 @@ const Appointments: React.FC = () => {
       formData.serviceId <= 0 ||
       !formData.dateTime.trim()
     ) {
-      setFormError("Completa mascota, veterinario, servicio y fecha.");
+      setFormError(
+        "Completa mascota, veterinario, servicio, fecha y selecciona un horario disponible.",
+      );
       return;
     }
 
@@ -184,10 +530,23 @@ const Appointments: React.FC = () => {
       });
 
       resetForm();
-      await loadAppointments();
+      await loadAppointments(
+        buildAppointmentFilters({
+          veterinarianFilter,
+          serviceFilter,
+          statusFilter,
+          dateFromFilter,
+          dateToFilter,
+        }),
+      );
     } catch (err) {
       console.error("No se pudo registrar la cita:", err);
-      setFormError("No se pudo registrar la cita. Inténtalo nuevamente.");
+      setFormError(
+        getAppointmentErrorMessage(
+          err,
+          "No se pudo registrar la cita. Inténtalo nuevamente.",
+        ),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -270,10 +629,20 @@ const Appointments: React.FC = () => {
       setEditDateTime(toInputDateTime(refreshedAppointment.fechaHora));
       setEditStatus(refreshedAppointment.estado);
       setIsEditMode(false);
-      await loadAppointments();
+      await loadAppointments(
+        buildAppointmentFilters({
+          veterinarianFilter,
+          serviceFilter,
+          statusFilter,
+          dateFromFilter,
+          dateToFilter,
+        }),
+      );
     } catch (err) {
       console.error("No se pudo actualizar la cita:", err);
-      setError("No se pudo actualizar la cita.");
+      setError(
+        getAppointmentErrorMessage(err, "No se pudo actualizar la cita."),
+      );
     } finally {
       setIsUpdatingAppointment(false);
     }
@@ -281,7 +650,7 @@ const Appointments: React.FC = () => {
 
   async function handleDeleteAppointment(appointment: AppointmentItem) {
     const confirmed = window.confirm(
-      `¿Deseas eliminar la cita de "${appointment.mascota.nombre}"?`,
+      `¿Deseas eliminar la cita de "${getAppointmentPetName(appointment, pets)}"?`,
     );
 
     if (!confirmed) {
@@ -290,16 +659,30 @@ const Appointments: React.FC = () => {
 
     try {
       setIsSubmittingAction(appointment.id);
+      setError("");
       await deleteAppointment(appointment.id);
+      setAppointments((current) =>
+        current.filter((item) => item.id !== appointment.id),
+      );
 
       if (selectedAppointment?.id === appointment.id) {
         setSelectedAppointment(null);
       }
 
-      await loadAppointments();
+      await loadAppointments(
+        buildAppointmentFilters({
+          veterinarianFilter,
+          serviceFilter,
+          statusFilter,
+          dateFromFilter,
+          dateToFilter,
+        }),
+      );
     } catch (err) {
       console.error("No se pudo eliminar la cita:", err);
-      setError("No se pudo eliminar la cita.");
+      setError(
+        getAppointmentErrorMessage(err, "No se pudo eliminar la cita."),
+      );
     } finally {
       setIsSubmittingAction(null);
     }
@@ -309,19 +692,23 @@ const Appointments: React.FC = () => {
     const loweredQuery = query.trim().toLowerCase();
 
     return appointments.filter((appointment) => {
+      const petName = getAppointmentPetName(appointment, pets).toLowerCase();
+      const veterinarianName = getAppointmentVeterinarianName(
+        appointment,
+        veterinarians,
+      ).toLowerCase();
+      const serviceName = getAppointmentServiceName(
+        appointment,
+        services,
+      ).toLowerCase();
       const matchesQuery =
         loweredQuery.length === 0 ||
-        appointment.mascota.nombre.toLowerCase().includes(loweredQuery) ||
-        appointment.veterinario.nombre.toLowerCase().includes(loweredQuery) ||
-        appointment.veterinario.apellido.toLowerCase().includes(loweredQuery) ||
-        appointment.servicio.nombre.toLowerCase().includes(loweredQuery);
-
-      const matchesStatus =
-        statusFilter === "todos" || appointment.estado === statusFilter;
-
-      return matchesQuery && matchesStatus;
+        petName.includes(loweredQuery) ||
+        veterinarianName.includes(loweredQuery) ||
+        serviceName.includes(loweredQuery);
+      return matchesQuery;
     });
-  }, [appointments, query, statusFilter]);
+  }, [appointments, pets, query, services, veterinarians]);
 
   return (
     <IonPage>
@@ -342,6 +729,9 @@ const Appointments: React.FC = () => {
               onClick={() => {
                 setFormError("");
                 setFormData(initialFormData);
+                setSelectedAppointmentDate("");
+                setAvailableSlots([]);
+                setAvailabilityError("");
                 setIsFormVisible((current) => !current);
               }}
             >
@@ -386,18 +776,19 @@ const Appointments: React.FC = () => {
                     ))}
                   </IonSelect>
 
-                  <IonSelect
-                    className="appointments-field appointments-field--select"
-                    interface="popover"
-                    value={formData.veterinarianId || undefined}
-                    placeholder="Selecciona un veterinario"
-                    onIonChange={(event) =>
-                      updateField(
-                        "veterinarianId",
-                        Number(event.detail.value ?? 0),
-                      )
-                    }
-                  >
+                    <IonSelect
+                      className="appointments-field appointments-field--select"
+                      interface="popover"
+                      value={formData.veterinarianId || undefined}
+                      placeholder="Selecciona un veterinario"
+                      onIonChange={(event) => {
+                        updateField(
+                          "veterinarianId",
+                          Number(event.detail.value ?? 0),
+                        );
+                        updateField("dateTime", "");
+                      }}
+                    >
                     {veterinarians.map((vet) => (
                       <IonSelectOption key={vet.id} value={vet.id}>
                         {getVetFullName(vet)}
@@ -405,15 +796,16 @@ const Appointments: React.FC = () => {
                     ))}
                   </IonSelect>
 
-                  <IonSelect
-                    className="appointments-field appointments-field--select"
-                    interface="popover"
-                    value={formData.serviceId || undefined}
-                    placeholder="Selecciona un servicio"
-                    onIonChange={(event) =>
-                      updateField("serviceId", Number(event.detail.value ?? 0))
-                    }
-                  >
+                    <IonSelect
+                      className="appointments-field appointments-field--select"
+                      interface="popover"
+                      value={formData.serviceId || undefined}
+                      placeholder="Selecciona un servicio"
+                      onIonChange={(event) => {
+                        updateField("serviceId", Number(event.detail.value ?? 0));
+                        updateField("dateTime", "");
+                      }}
+                    >
                     {services.map((service) => (
                       <IonSelectOption key={service.id} value={service.id}>
                         {service.nombre}
@@ -421,18 +813,61 @@ const Appointments: React.FC = () => {
                     ))}
                   </IonSelect>
 
-                  <IonInput
-                    className="appointments-field"
-                    fill="outline"
-                    label="Fecha y hora"
-                    labelPlacement="stacked"
-                    type="datetime-local"
-                    value={formData.dateTime}
-                    onIonInput={(event) =>
-                      updateField("dateTime", String(event.detail.value ?? ""))
-                    }
-                  />
+                  <button
+                    className="appointments-datetime-trigger"
+                    type="button"
+                    onClick={() => setIsCreateDateModalOpen(true)}
+                  >
+                    <span className="appointments-datetime-trigger__label">
+                      Fecha de atención
+                    </span>
+                    <strong className="appointments-datetime-trigger__value">
+                      {formatDatePickerValue(
+                        selectedAppointmentDate,
+                        "Selecciona una fecha",
+                      )}
+                    </strong>
+                  </button>
                 </div>
+
+                <IonModal
+                  isOpen={isCreateDateModalOpen}
+                  onDidDismiss={() => setIsCreateDateModalOpen(false)}
+                >
+                  <IonContent className="ion-padding">
+                    <div className="appointments-datetime-modal">
+                      <div className="appointments-datetime-modal__header">
+                        <h2>Selecciona la fecha y hora</h2>
+                        <IonButton
+                          fill="clear"
+                          onClick={() => setIsCreateDateModalOpen(false)}
+                        >
+                          Cerrar
+                        </IonButton>
+                      </div>
+
+                      <IonDatetime
+                        presentation="date"
+                        locale="es-PE"
+                        value={toDateOnlyValue(selectedAppointmentDate)}
+                        onIonChange={(event) => {
+                          setFormError("");
+                          updateField("dateTime", "");
+                          setSelectedAppointmentDate(
+                            String(event.detail.value ?? "").slice(0, 10),
+                          );
+                        }}
+                      />
+
+                      <IonButton
+                        expand="block"
+                        onClick={() => setIsCreateDateModalOpen(false)}
+                      >
+                        Confirmar
+                      </IonButton>
+                    </div>
+                  </IonContent>
+                </IonModal>
 
                 <IonTextarea
                   className="appointments-field"
@@ -445,6 +880,65 @@ const Appointments: React.FC = () => {
                     updateField("notes", String(event.detail.value ?? ""))
                   }
                 />
+
+                {availabilityError && (
+                  <IonText color="warning">
+                    <p className="appointments-feedback">{availabilityError}</p>
+                  </IonText>
+                )}
+
+                {isAvailabilityLoading ? (
+                  <div className="appointments-loading">
+                    <IonSpinner name="crescent" />
+                    <span>Consultando disponibilidad...</span>
+                  </div>
+                ) : selectedAppointmentDate ? (
+                  <>
+                    {Array.isArray(availableSlots) ? (
+                      <IonSelect
+                        className="appointments-field appointments-field--select"
+                        interface="popover"
+                        value={formData.dateTime || undefined}
+                        placeholder={
+                          availableSlots.length > 0
+                            ? "Selecciona un horario disponible"
+                            : "No hay horarios disponibles"
+                        }
+                        disabled={availableSlots.length === 0}
+                        onIonChange={(event) =>
+                          updateField(
+                            "dateTime",
+                            buildDateTimeFromSlot(
+                              String(event.detail.value ?? ""),
+                              selectedAppointmentDate,
+                            ),
+                          )
+                        }
+                      >
+                        {availableSlots.map((slot) => (
+                          <IonSelectOption key={slot.dateTime} value={slot.dateTime}>
+                            {formatAvailableSlot(
+                              slot.dateTime,
+                              selectedAppointmentDate,
+                            )}
+                          </IonSelectOption>
+                        ))}
+                      </IonSelect>
+                    ) : null}
+
+                    {formData.dateTime ? (
+                      <p className="appointments-feedback">
+                        Horario seleccionado: {formatDateTime(formData.dateTime)}
+                      </p>
+                    ) : null}
+
+                    {availableSlots.length === 0 ? (
+                      <p className="appointments-feedback">
+                        No hay horarios disponibles para la fecha seleccionada.
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
 
                 {formError && (
                   <IonText color="danger">
@@ -478,6 +972,40 @@ const Appointments: React.FC = () => {
               <IonSelect
                 className="appointments-field appointments-field--select"
                 interface="popover"
+                value={veterinarianFilter}
+                onIonChange={(event) =>
+                  setVeterinarianFilter(String(event.detail.value ?? "0"))
+                }
+              >
+                <IonSelectOption value="0">
+                  Todos los veterinarios
+                </IonSelectOption>
+                {veterinarians.map((vet) => (
+                  <IonSelectOption key={vet.id} value={String(vet.id)}>
+                    {getVetFullName(vet)}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+
+              <IonSelect
+                className="appointments-field appointments-field--select"
+                interface="popover"
+                value={serviceFilter}
+                onIonChange={(event) =>
+                  setServiceFilter(String(event.detail.value ?? "0"))
+                }
+              >
+                <IonSelectOption value="0">Todos los servicios</IonSelectOption>
+                {services.map((service) => (
+                  <IonSelectOption key={service.id} value={String(service.id)}>
+                    {service.nombre}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+
+              <IonSelect
+                className="appointments-field appointments-field--select"
+                interface="popover"
                 value={statusFilter}
                 onIonChange={(event) =>
                   setStatusFilter(String(event.detail.value ?? "todos"))
@@ -491,6 +1019,30 @@ const Appointments: React.FC = () => {
                 <IonSelectOption value="ATENDIDA">ATENDIDA</IonSelectOption>
                 <IonSelectOption value="NO_ASISTIO">NO_ASISTIO</IonSelectOption>
               </IonSelect>
+
+              <IonInput
+                className="appointments-field"
+                fill="outline"
+                label="Desde"
+                labelPlacement="stacked"
+                type="date"
+                value={dateFromFilter}
+                onIonInput={(event) =>
+                  setDateFromFilter(String(event.detail.value ?? ""))
+                }
+              />
+
+              <IonInput
+                className="appointments-field"
+                fill="outline"
+                label="Hasta"
+                labelPlacement="stacked"
+                type="date"
+                value={dateToFilter}
+                onIonInput={(event) =>
+                  setDateToFilter(String(event.detail.value ?? ""))
+                }
+              />
             </div>
 
             {error && (
@@ -523,12 +1075,17 @@ const Appointments: React.FC = () => {
                       {filteredAppointments.map((appointment, index) => (
                         <tr key={appointment.id}>
                           <td>{index + 1}</td>
-                          <td>{appointment.mascota.nombre}</td>
-                          <td>{`${appointment.veterinario.nombre} ${appointment.veterinario.apellido}`}</td>
-                          <td>{appointment.servicio.nombre}</td>
+                          <td>{getAppointmentPetName(appointment, pets)}</td>
+                          <td>
+                            {getAppointmentVeterinarianName(
+                              appointment,
+                              veterinarians,
+                            )}
+                          </td>
+                          <td>{getAppointmentServiceName(appointment, services)}</td>
                           <td>{formatDateTime(appointment.fechaHora)}</td>
                           <td>
-                            <span className="appointments-status">
+                            <span className={getAppointmentStatusClass(appointment.estado)}>
                               {appointment.estado}
                             </span>
                           </td>
@@ -573,16 +1130,21 @@ const Appointments: React.FC = () => {
                         <span className="appointments-mobile-card__index">
                           #{index + 1}
                         </span>
-                        <span className="appointments-status">
+                        <span className={getAppointmentStatusClass(appointment.estado)}>
                           {appointment.estado}
                         </span>
                       </div>
 
-                      <h2>{appointment.mascota.nombre}</h2>
-                      <p>{appointment.servicio.nombre}</p>
+                      <h2>{getAppointmentPetName(appointment, pets)}</h2>
+                      <p>{getAppointmentServiceName(appointment, services)}</p>
 
                       <div className="appointments-mobile-card__meta">
-                        <span>{`${appointment.veterinario.nombre} ${appointment.veterinario.apellido}`}</span>
+                        <span>
+                          {getAppointmentVeterinarianName(
+                            appointment,
+                            veterinarians,
+                          )}
+                        </span>
                         <strong>{formatDateTime(appointment.fechaHora)}</strong>
                       </div>
 
@@ -653,15 +1215,24 @@ const Appointments: React.FC = () => {
                 <div className="appointments-detail-grid">
                   <div className="appointments-detail-item">
                     <span>Mascota</span>
-                    <strong>{selectedAppointment.mascota.nombre}</strong>
+                    <strong>
+                      {getAppointmentPetName(selectedAppointment, pets)}
+                    </strong>
                   </div>
                   <div className="appointments-detail-item">
                     <span>Veterinario</span>
-                    <strong>{`${selectedAppointment.veterinario.nombre} ${selectedAppointment.veterinario.apellido}`}</strong>
+                    <strong>
+                      {getAppointmentVeterinarianName(
+                        selectedAppointment,
+                        veterinarians,
+                      )}
+                    </strong>
                   </div>
                   <div className="appointments-detail-item">
                     <span>Servicio</span>
-                    <strong>{selectedAppointment.servicio.nombre}</strong>
+                    <strong>
+                      {getAppointmentServiceName(selectedAppointment, services)}
+                    </strong>
                   </div>
                   <div className="appointments-detail-item">
                     <span>Fecha y hora</span>
@@ -673,7 +1244,7 @@ const Appointments: React.FC = () => {
                   </div>
                   <div className="appointments-detail-item">
                     <span>Creado por</span>
-                    <strong>{`${selectedAppointment.creadoPor.nombre} ${selectedAppointment.creadoPor.apellido}`}</strong>
+                    <strong>{getAppointmentCreatorName(selectedAppointment)}</strong>
                   </div>
                   <div className="appointments-detail-item appointments-detail-item--full">
                     <span>Notas</span>
@@ -688,17 +1259,21 @@ const Appointments: React.FC = () => {
                   onSubmit={handleUpdateAppointment}
                 >
                   <div className="appointments-edit-form__grid">
-                    <IonInput
-                      className="appointments-field"
-                      fill="outline"
-                      label="Reprogramar fecha y hora"
-                      labelPlacement="stacked"
-                      type="datetime-local"
-                      value={editDateTime}
-                      onIonInput={(event) =>
-                        setEditDateTime(String(event.detail.value ?? ""))
-                      }
-                    />
+                    <button
+                      className="appointments-datetime-trigger"
+                      type="button"
+                      onClick={() => setIsEditDateModalOpen(true)}
+                    >
+                      <span className="appointments-datetime-trigger__label">
+                        Reprogramar fecha y hora
+                      </span>
+                      <strong className="appointments-datetime-trigger__value">
+                        {formatDateTimePickerValue(
+                          editDateTime,
+                          "Selecciona fecha y hora",
+                        )}
+                      </strong>
+                    </button>
 
                     <IonSelect
                       className="appointments-field appointments-field--select"
@@ -717,6 +1292,44 @@ const Appointments: React.FC = () => {
                       <IonSelectOption value="NO_ASISTIO">NO_ASISTIO</IonSelectOption>
                     </IonSelect>
                   </div>
+
+                  <IonModal
+                    isOpen={isEditDateModalOpen}
+                    onDidDismiss={() => setIsEditDateModalOpen(false)}
+                  >
+                    <IonContent className="ion-padding">
+                      <div className="appointments-datetime-modal">
+                        <div className="appointments-datetime-modal__header">
+                          <h2>Reprogramar cita</h2>
+                          <IonButton
+                            fill="clear"
+                            onClick={() => setIsEditDateModalOpen(false)}
+                          >
+                            Cerrar
+                          </IonButton>
+                        </div>
+
+                        <IonDatetime
+                          presentation="date-time"
+                          hourCycle="h12"
+                          locale="es-PE"
+                          value={toDatetimeValue(editDateTime)}
+                          onIonChange={(event) =>
+                            setEditDateTime(
+                              toInputDateTime(String(event.detail.value ?? "")),
+                            )
+                          }
+                        />
+
+                        <IonButton
+                          expand="block"
+                          onClick={() => setIsEditDateModalOpen(false)}
+                        >
+                          Confirmar
+                        </IonButton>
+                      </div>
+                    </IonContent>
+                  </IonModal>
 
                   <div className="appointments-edit-form__actions">
                     <IonButton

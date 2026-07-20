@@ -13,6 +13,7 @@ import {
 import { Link, useHistory } from "react-router-dom";
 import { RegisterRequest } from "../../contracts/authContract";
 import { signUp } from "../../services/authService";
+import { getHttpErrorMessage } from "../../utils/httpErrorMessage";
 import "./Register.css";
 
 const initialFormData: RegisterRequest = {
@@ -58,7 +59,13 @@ const Register = () => {
       history.replace("/login");
     } catch (err) {
       console.error("Error al registrar usuario:", err);
-      setError("No se pudo registrar el usuario. Inténtalo nuevamente.");
+      setError(
+        getHttpErrorMessage(
+          err,
+          "No se pudo registrar el usuario.",
+          "No se pudo completar el registro con esos datos.",
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -89,6 +96,9 @@ const Register = () => {
                   <IonInput
                     type="text"
                     required
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
                     value={formData.username}
                     onIonInput={(e) =>
                       updateField("username", String(e.detail.value ?? ""))
@@ -101,6 +111,9 @@ const Register = () => {
                   <IonInput
                     type="email"
                     required
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
                     value={formData.email}
                     onIonInput={(e) =>
                       updateField("email", String(e.detail.value ?? ""))
@@ -113,6 +126,9 @@ const Register = () => {
                   <IonInput
                     type="password"
                     required
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
                     value={formData.password}
                     onIonInput={(e) =>
                       updateField("password", String(e.detail.value ?? ""))
@@ -125,6 +141,9 @@ const Register = () => {
                   <IonInput
                     type="password"
                     required
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck={false}
                     value={confirmPassword}
                     onIonInput={(e) =>
                       setConfirmPassword(String(e.detail.value ?? ""))

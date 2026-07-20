@@ -1,7 +1,5 @@
 export interface OwnerUserItem {
   id: number;
-  username: string;
-  password: string;
   nombre: string;
   apellido: string;
   email: string;
@@ -24,12 +22,9 @@ export interface OwnerItem {
 
 export interface OwnerContactItem {
   id?: number;
-  nombre?: string;
-  telefono?: string;
-  relacion?: string;
-  name?: string;
-  phone?: string;
-  relation?: string;
+  nombre: string;
+  telefono: string;
+  relacion: string;
 }
 
 export interface CreateOwnerRequest {
@@ -37,6 +32,7 @@ export interface CreateOwnerRequest {
   lastName: string;
   dni: string;
   email: string;
+  password: string;
   phone: string;
   address: string;
   userId: number;
@@ -54,4 +50,62 @@ export interface OwnerResponse {
   content: OwnerItem[];
 }
 
-export type OwnerContactsResponse = OwnerContactItem[];
+export interface OwnerApiUserItem {
+  id: number;
+  nombre?: string;
+  apellido?: string;
+  email?: string;
+  telefono?: string;
+  rol?: string;
+  activo?: boolean;
+  names?: string;
+  lastNames?: string;
+  phone?: string;
+  active?: boolean;
+}
+
+export interface OwnerApiItem {
+  id: number;
+  nombre?: string;
+  apellido?: string;
+  dni: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  activo?: boolean;
+  phone?: string;
+  address?: string;
+  active?: boolean;
+  usuario?: OwnerApiUserItem | null;
+}
+
+export interface OwnerApiResponse {
+  content: OwnerApiItem[];
+}
+
+export interface OwnerContactApiItem {
+  id?: number;
+  ownerId?: number;
+  nombre?: string;
+  telefono?: string;
+  relacion?: string;
+  name?: string;
+  phone?: string;
+  relation?: string;
+}
+
+export interface OwnerContactsPageInfo {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface OwnerContactsPagedResponse {
+  content: OwnerContactApiItem[];
+  page?: OwnerContactsPageInfo;
+}
+
+export type OwnerContactsResponse =
+  | OwnerContactApiItem[]
+  | OwnerContactsPagedResponse;

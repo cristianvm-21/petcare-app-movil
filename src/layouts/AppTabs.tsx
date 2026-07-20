@@ -18,6 +18,7 @@ import Appointments from "../pages/appointments/Appointments";
 import Home from "../pages/home/Home";
 import Owners from "../pages/owners/Owners";
 import Pets from "../pages/pets/Pets";
+import Triage from "../pages/triage/Triage";
 import Users from "../pages/users/Users";
 import Services from "../pages/VetServices/VetServices";
 import SectionPlaceholder from "../pages/shared/SectionPlaceholder";
@@ -58,7 +59,9 @@ const AppTabs: React.FC = () => {
   );
 
   function handleOpenMoreMenu(event: CustomEvent) {
-    setMoreMenuEvent(event);
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    setMoreMenuEvent((event as Event) ?? undefined);
   }
 
   function handleSelectOverflowTab(path: string) {
@@ -86,6 +89,8 @@ const AppTabs: React.FC = () => {
                   <Home />
                 ) : route.key === "appointments" ? (
                   <Appointments />
+                ) : route.key === "triage" ? (
+                  <Triage />
                 ) : route.key === "services" ? (
                   <Services />
                 ) : route.key === "users" ? (
@@ -116,10 +121,23 @@ const AppTabs: React.FC = () => {
           </IonTabButton>
         ))}
 
+        {overflowTabs.map((tab) => (
+          <IonTabButton
+            className="app-tabs__hidden-tab"
+            key={`${tab.path}-hidden`}
+            tab={tab.key}
+            href={tab.path}
+          >
+            <IonIcon icon={tab.icon} />
+            <IonLabel>{tab.label}</IonLabel>
+          </IonTabButton>
+        ))}
+
         {overflowTabs.length > 0 && (
           <IonTabButton
             className={`app-tabs__more-button${isMoreActive ? " app-tabs__more-button--active" : ""}`}
-            tab="more-menu"
+            tab="more-trigger"
+            href={location.pathname}
             onClick={handleOpenMoreMenu}
           >
             <IonIcon icon={ellipsisHorizontalOutline} />

@@ -1,9 +1,13 @@
 import { springbootApi } from "./axiosHttp";
 import { PageRequest } from "../contracts/pageRequestContract";
 import {
+  AppointmentAvailabilityApiItem,
+  AppointmentAvailabilityItem,
+  AppointmentAvailabilityResponse,
   AppointmentItem,
   AppointmentResponse,
   CreateAppointmentRequest,
+  GetAppointmentsFilters,
   ReprogramAppointmentRequest,
   UpdateAppointmentStatusRequest,
 } from "../contracts/appointmentContract";
@@ -13,15 +17,68 @@ const appointmentPageRequest: PageRequest = {
   size: 100,
 };
 
-export async function httpGetAppointmentAPI() {
+type GetAppointmentsParams = Partial<PageRequest> & GetAppointmentsFilters;
+
+export async function httpGetAppointmentAPI(params?: GetAppointmentsParams) {
   const response = await springbootApi.get<AppointmentResponse>("citas", {
-    params: appointmentPageRequest,
+    params: {
+      ...appointmentPageRequest,
+      ...params,
+    },
   });
   return response.data;
 }
 
 export async function httpGetAppointmentByIdAPI(id: number) {
   const response = await springbootApi.get<AppointmentItem>(`citas/${id}`);
+  return response.data;
+}
+
+export async function httpGetAppointmentsByPetIdAPI(
+  petId: number,
+  params?: Partial<PageRequest>,
+) {
+  const response = await springbootApi.get<AppointmentResponse>(
+    `citas/mascota/${petId}`,
+    {
+      params: {
+        ...appointmentPageRequest,
+        ...params,
+      },
+    },
+  );
+  return response.data;
+}
+
+export async function httpGetAppointmentsByVeterinarianIdAPI(
+  veterinarianId: number,
+  params?: Partial<PageRequest>,
+) {
+  const response = await springbootApi.get<AppointmentResponse>(
+    `citas/veterinario/${veterinarianId}`,
+    {
+      params: {
+        ...appointmentPageRequest,
+        ...params,
+      },
+    },
+  );
+  return response.data;
+}
+
+export async function httpGetAppointmentAvailabilityAPI(params: {
+  veterinarioId: number;
+  servicioId: number;
+  fecha: string;
+}) {
+  const response = await springbootApi.get<
+    AppointmentAvailabilityItem[] | AppointmentAvailabilityResponse
+  >(
+    "citas/disponibilidad",
+    {
+      params,
+    },
+  );
   return response.data;
 }
 

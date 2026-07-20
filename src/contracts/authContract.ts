@@ -1,13 +1,30 @@
 import { UserRole } from "../types/userRole";
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface LoginResponse {
   token: string;
-  refreshToken: string;
+  refreshToken?: string;
+  username: string;
+  role: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken?: string;
+}
+
+export interface RefreshTokenResponse {
+  token: string;
+  refreshToken?: string;
+  username: string;
+  role: string;
+}
+
+export interface AuthenticatedUserResponse {
+  id?: number;
   username: string;
   role: string;
 }

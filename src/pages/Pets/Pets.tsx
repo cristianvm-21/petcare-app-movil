@@ -33,6 +33,7 @@ import {
 } from "../../services/petService";
 import {
   CreatePetRequest,
+  GetPetsFilters,
   PetItem,
   UpdatePetRequest,
 } from "../../contracts/petContract";
@@ -77,14 +78,15 @@ const Pets: React.FC = () => {
     return `${owner.nombre} ${owner.apellido}`.trim();
   }
 
-  async function loadPets(selectedOwnerId?: number) {
+  async function loadPets(filters?: GetPetsFilters) {
     try {
       setIsLoading(true);
       setError("");
 
-      const petsData = selectedOwnerId && selectedOwnerId > 0
-        ? await findPetsByOwnerId(selectedOwnerId)
-        : await findAllPets();
+      const petsData =
+        filters?.duenoId && filters.duenoId > 0
+          ? await findPetsByOwnerId(filters.duenoId)
+          : await findAllPets(filters);
       setPets(petsData);
     } catch (err) {
       console.error("No se pudieron cargar las mascotas:", err);
@@ -114,7 +116,7 @@ const Pets: React.FC = () => {
 
   useEffect(() => {
     const selectedOwnerId = Number(ownerFilter);
-    loadPets(selectedOwnerId > 0 ? selectedOwnerId : undefined);
+    void loadPets(selectedOwnerId > 0 ? { duenoId: selectedOwnerId } : undefined);
   }, [ownerFilter]);
 
   function updateField<K extends keyof CreatePetRequest>(
@@ -161,7 +163,11 @@ const Pets: React.FC = () => {
       setFormData(initialFormData);
       setEditingPetId(null);
       setIsFormVisible(false);
-      await loadPets();
+      await loadPets(
+        formData.ownerId > 0 && ownerFilter !== "0"
+          ? { duenoId: Number(ownerFilter) }
+          : undefined,
+      );
     } catch (err) {
       console.error("No se pudo guardar la mascota:", err);
       setFormError("No se pudo guardar la mascota. Inténtalo nuevamente.");
@@ -206,7 +212,9 @@ const Pets: React.FC = () => {
     try {
       setIsSubmittingAction(pet.id);
       await togglePetStatus(pet.id);
-      await loadPets();
+      await loadPets(
+        ownerFilter !== "0" ? { duenoId: Number(ownerFilter) } : undefined,
+      );
     } catch (err) {
       console.error("No se pudo cambiar el estado de la mascota:", err);
       setError("No se pudo cambiar el estado de la mascota.");
@@ -227,7 +235,9 @@ const Pets: React.FC = () => {
     try {
       setIsSubmittingAction(pet.id);
       await deletePet(pet.id);
-      await loadPets();
+      await loadPets(
+        ownerFilter !== "0" ? { duenoId: Number(ownerFilter) } : undefined,
+      );
     } catch (err) {
       console.error("No se pudo eliminar la mascota:", err);
       setError("No se pudo eliminar la mascota.");
@@ -382,7 +392,10 @@ const Pets: React.FC = () => {
                     labelPlacement="stacked"
                     value={formData.microchip}
                     onIonInput={(event) =>
-                      updateField("microchip", String(event.detail.value ?? ""))
+                      updateField(
+                        "microchip",
+                        String(event.detail.value ?? "").slice(0, 9),
+                      )
                     }
                   />
 

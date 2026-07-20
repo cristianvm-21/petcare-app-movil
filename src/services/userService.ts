@@ -1,36 +1,65 @@
+import { AxiosError } from "axios";
 import {
-  httpDeleteUserAPI,
-  httpGetUserAPI,
-  httpGetVeterinariansAPI,
-  httpPatchUserAPI,
+  httpDeleteUserLegacyAPI,
+  httpGetUsersCatalogAPI,
+  httpPatchUserStatusAPI,
   httpPostUserAPI,
-  httpPutUserAPI,
+  httpPutUserLegacyAPI,
+  UserCollectionResult,
 } from "../api/userHttp";
 import {
   CreateUserRequest,
   UpdateUserRequest,
   UserItem,
-  UserResponse,
-  VeterinarianResponse,
 } from "../contracts/userContract";
 import { UserRole } from "../types/userRole";
 
+export interface UsersCatalogResult {
+  items: UserItem[];
+  source: UserCollectionResult["source"];
+  supportsFullCrud: boolean;
+}
+
+function isLegacyRouteUnavailable(error: unknown) {
+  return (
+    error instanceof AxiosError &&
+    [404, 405, 501].includes(error.response?.status ?? 0)
+  );
+}
+
+export async function findUsersCatalog(filters?: {
+  soloActivos?: boolean;
+  rol?: UserRole;
+}) {
+  const response = await httpGetUsersCatalogAPI(filters);
+
+  return {
+    items: response.items,
+    source: response.source,
+    supportsFullCrud: response.supportsFullCrud,
+  } satisfies UsersCatalogResult;
+}
+
 export async function findAllUsers() {
-  const response: UserResponse = await httpGetUserAPI();
-  return response.content ?? [];
+  const response = await findUsersCatalog();
+  return response.items;
 }
 
 export async function findUsersByFilters(filters: {
   soloActivos?: boolean;
   rol?: UserRole;
 }) {
-  const response: UserResponse = await httpGetUserAPI(filters);
-  return response.content ?? [];
+  const response = await findUsersCatalog(filters);
+  return response.items;
 }
 
-export async function findVeterinarians() {
-  const response: VeterinarianResponse = await httpGetVeterinariansAPI();
-  return response ?? [];
+export async function findVeterinarians(options?: { includeInactive?: boolean }) {
+  const response = await findUsersCatalog({
+    soloActivos: options?.includeInactive ? undefined : true,
+    rol: "VETERINARIO",
+  });
+
+  return response.items.filter((user) => user.role === "VETERINARIO");
 }
 
 export async function createUser(payload: CreateUserRequest) {
@@ -39,15 +68,37 @@ export async function createUser(payload: CreateUserRequest) {
 }
 
 export async function updateUser(id: number, payload: UpdateUserRequest) {
-  const response: UserItem = await httpPutUserAPI(id, payload);
-  return response;
+  try {
+    const response: UserItem = await httpPutUserLegacyAPI(id, payload);
+    return response;
+  } catch (error) {
+    if (isLegacyRouteUnavailable(error)) {
+      throw new Error(
+        "El backend actual no expone la edición completa de usuarios.",
+      );
+    }
+
+    throw error;
+  }
 }
 
-export async function toggleUserStatus(id: number) {
-  const response: UserItem = await httpPatchUserAPI(id);
+export async function toggleUserStatus(user: UserItem) {
+  const response: UserItem = await httpPatchUserStatusAPI(user.id, {
+    active: !user.active,
+  });
   return response;
 }
 
 export async function deleteUser(id: number) {
-  await httpDeleteUserAPI(id);
+  try {
+    await httpDeleteUserLegacyAPI(id);
+  } catch (error) {
+    if (isLegacyRouteUnavailable(error)) {
+      throw new Error(
+        "El backend actual no expone la eliminación de usuarios.",
+      );
+    }
+
+    throw error;
+  }
 }

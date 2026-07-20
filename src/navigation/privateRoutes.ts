@@ -6,6 +6,7 @@ import {
   pawOutline,
   peopleOutline,
   personCircleOutline,
+  pulseOutline,
 } from "ionicons/icons";
 import { UserRole } from "../types/userRole";
 
@@ -56,6 +57,16 @@ export const privateRoutes: PrivateRouteConfig[] = [
     description: "Aquí podrás trabajar el flujo de citas del personal.",
     icon: calendarOutline,
     roles: ["ADMINISTRADOR", "VETERINARIO", "ASISTENTE"],
+    showInTab: true,
+  },
+  {
+    key: "triage",
+    path: "/app/triaje",
+    label: "Triaje",
+    title: "Triaje",
+    description: "Evaluación clínica inicial y priorización del paciente.",
+    icon: pulseOutline,
+    roles: ["ADMINISTRADOR", "VETERINARIO"],
     showInTab: true,
   },
   {

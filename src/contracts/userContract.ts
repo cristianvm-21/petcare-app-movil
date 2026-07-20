@@ -2,7 +2,6 @@ import { UserRole } from "../types/userRole";
 
 export interface UserItem {
   id: number;
-  username: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -12,7 +11,6 @@ export interface UserItem {
 }
 
 export interface CreateUserRequest {
-  username: string;
   password: string;
   firstName: string;
   lastName: string;
@@ -23,8 +21,38 @@ export interface CreateUserRequest {
 
 export type UpdateUserRequest = CreateUserRequest;
 
-export interface UserResponse {
-  content: UserItem[];
+export interface UserPageInfo {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
 }
 
-export type VeterinarianResponse = UserItem[];
+export interface UserResponse {
+  content: UserItem[];
+  page?: UserPageInfo;
+}
+
+export type UserListResponse = UserResponse | UserItem[];
+
+export interface UserApiItem {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone?: string;
+  role?: UserRole;
+  active?: boolean;
+  names?: string;
+  lastNames?: string;
+  rol?: UserRole;
+}
+
+export interface UserApiResponse {
+  content: UserApiItem[];
+  page?: UserPageInfo;
+}
+
+export interface UpdateUserStatusRequest {
+  active: boolean;
+}

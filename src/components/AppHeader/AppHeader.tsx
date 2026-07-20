@@ -7,7 +7,10 @@ import {
   IonToolbar,
 } from "@ionic/react";
 import { logOutOutline, settingsOutline } from "ionicons/icons";
+import { useState } from "react";
 import { useHistory } from "react-router-dom";
+import { getStoredUsername } from "../../auth/session";
+import { logout } from "../../services/authService";
 import "./AppHeader.css";
 
 interface AppHeaderProps {
@@ -16,14 +19,17 @@ interface AppHeaderProps {
 
 const AppHeader: React.FC<AppHeaderProps> = ({ title }) => {
   const history = useHistory();
-  const username = localStorage.getItem("username") ?? "Usuario";
+  const [isClosingSession, setIsClosingSession] = useState(false);
+  const username = getStoredUsername() ?? "Usuario";
 
-  function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("username");
-    localStorage.removeItem("role");
-    history.replace("/login");
+  async function handleLogout() {
+    try {
+      setIsClosingSession(true);
+      await logout();
+    } finally {
+      history.replace("/login");
+      setIsClosingSession(false);
+    }
   }
 
   return (
@@ -45,6 +51,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title }) => {
             <IonButton
               aria-label="Cerrar sesión"
               className="app-header__action"
+              disabled={isClosingSession}
               fill="clear"
               onClick={handleLogout}
             >

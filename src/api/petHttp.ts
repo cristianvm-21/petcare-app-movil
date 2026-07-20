@@ -2,6 +2,7 @@ import { springbootApi } from "./axiosHttp";
 import { PageRequest } from "../contracts/pageRequestContract";
 import {
   CreatePetRequest,
+  GetPetsFilters,
   PetItem,
   PetOwnerPrincipalResponse,
   PetsByOwnerResponse,
@@ -14,9 +15,14 @@ const petPageRequest: PageRequest = {
   size: 100,
 };
 
-export async function httpGetPetAPI() {
+type GetPetsParams = Partial<PageRequest> & GetPetsFilters;
+
+export async function httpGetPetAPI(params?: GetPetsParams) {
   const response = await springbootApi.get<PetResponse>("mascotas", {
-    params: petPageRequest,
+    params: {
+      ...petPageRequest,
+      ...params,
+    },
   });
   return response.data;
 }
@@ -26,9 +32,18 @@ export async function httpGetPetByIdAPI(id: number) {
   return response.data;
 }
 
-export async function httpGetPetsByOwnerIdAPI(ownerId: number) {
+export async function httpGetPetsByOwnerIdAPI(
+  ownerId: number,
+  params?: Partial<PageRequest>,
+) {
   const response = await springbootApi.get<PetsByOwnerResponse>(
     `mascotas/dueno/${ownerId}`,
+    {
+      params: {
+        ...petPageRequest,
+        ...params,
+      },
+    },
   );
   return response.data;
 }
@@ -36,6 +51,30 @@ export async function httpGetPetsByOwnerIdAPI(ownerId: number) {
 export async function httpGetPetOwnerPrincipalAPI(id: number) {
   const response = await springbootApi.get<PetOwnerPrincipalResponse>(
     `mascotas/${id}/dueno-principal`,
+  );
+  return response.data;
+}
+
+export async function httpPostPetOwnerLinkAPI(
+  petId: number,
+  ownerId: number,
+  relation: string,
+) {
+  const response = await springbootApi.post<PetItem>(
+    `mascotas/${petId}/vincular-dueno/${ownerId}`,
+    null,
+    {
+      params: {
+        relacion: relation,
+      },
+    },
+  );
+  return response.data;
+}
+
+export async function httpPatchPetOwnerPrincipalAPI(petId: number) {
+  const response = await springbootApi.patch<PetItem>(
+    `mascotas/${petId}/cambiar-dueno-principal`,
   );
   return response.data;
 }

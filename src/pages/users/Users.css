@@ -120,6 +120,10 @@
   --background: #fff;
   --border-color: rgba(118, 154, 197, 0.24);
   --border-radius: 16px;
+  --color: #12314d;
+  --placeholder-color: rgba(18, 49, 77, 0.62);
+  --label-color: #12314d;
+  --highlight-color: var(--app-color-celeste);
   --highlight-color-focused: var(--app-color-celeste);
   flex: 1;
 }
@@ -131,6 +135,35 @@
   border: 1px solid rgba(118, 154, 197, 0.24);
   border-radius: 16px;
   background: #fff;
+  color: #12314d;
+}
+
+.users-field--full {
+  grid-column: 1 / -1;
+}
+
+.users-field ion-input,
+.users-field ion-select {
+  --color: #12314d;
+  --placeholder-color: rgba(18, 49, 77, 0.62);
+}
+
+.users-field.ion-valid,
+.users-field.ion-invalid,
+.users-field.ion-touched,
+.users-field.ion-focused {
+  --color: #12314d;
+  --label-color: #12314d;
+}
+
+.users-field .label-text-wrapper,
+.users-field .native-input,
+.users-field input {
+  color: #12314d !important;
+}
+
+.users-field--select::part(label),
+.users-field ion-input::part(label) {
   color: #12314d;
 }
 
@@ -321,6 +354,10 @@
   .users-field--select {
     max-width: none;
     width: 100%;
+  }
+
+  .users-field--full {
+    grid-column: auto;
   }
 
   .users-table-wrapper {

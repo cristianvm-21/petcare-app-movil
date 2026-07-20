@@ -25,6 +25,7 @@ import {
   createVetService,
   deleteVetService,
   findAllVetServices,
+  findVetServiceById,
   toggleVetServiceStatus,
   updateVetService,
 } from "../../services/vetCatalogService";
@@ -57,12 +58,15 @@ const VetServices: React.FC = () => {
   const [formData, setFormData] =
     useState<CreateVetServiceRequest>(initialFormData);
 
-  async function loadServices() {
+  async function loadServices(filters?: {
+    nombre?: string;
+    soloActivos?: boolean;
+  }) {
     try {
       setIsLoading(true);
       setError("");
 
-      const vetServicesData = await findAllVetServices();
+      const vetServicesData = await findAllVetServices(filters);
       setServices(vetServicesData);
     } catch (err) {
       console.error("No se pudieron cargar los servicios:", err);
@@ -73,8 +77,14 @@ const VetServices: React.FC = () => {
   }
 
   useEffect(() => {
-    loadServices();
-  }, []);
+    const normalizedQuery = query.trim();
+    const filters = {
+      nombre: normalizedQuery || undefined,
+      soloActivos: statusFilter === "activos" ? true : undefined,
+    };
+
+    void loadServices(filters);
+  }, [query, statusFilter]);
 
   function updateField<K extends keyof CreateVetServiceRequest>(
     field: K,
@@ -123,16 +133,27 @@ const VetServices: React.FC = () => {
     }
   }
 
-  function handleStartEdit(service: VetServiceItem) {
-    setEditingServiceId(service.id);
-    setFormError("");
-    setFormData({
-      name: service.nombre,
-      description: service.descripcion,
-      durationMinutes: service.duracionMinutos,
-      referentialCost: service.costoReferencial,
-    });
-    setIsCreateFormVisible(true);
+  async function handleStartEdit(service: VetServiceItem) {
+    try {
+      setIsSubmittingAction(service.id);
+      setFormError("");
+
+      const serviceDetail = await findVetServiceById(service.id);
+
+      setEditingServiceId(service.id);
+      setFormData({
+        name: serviceDetail.nombre,
+        description: serviceDetail.descripcion,
+        durationMinutes: serviceDetail.duracionMinutos,
+        referentialCost: serviceDetail.costoReferencial,
+      });
+      setIsCreateFormVisible(true);
+    } catch (err) {
+      console.error("No se pudo cargar el detalle del servicio:", err);
+      setError("No se pudo cargar el detalle del servicio.");
+    } finally {
+      setIsSubmittingAction(null);
+    }
   }
 
   async function handleToggleStatus(service: VetServiceItem) {
@@ -170,22 +191,16 @@ const VetServices: React.FC = () => {
   }
 
   const filteredServices = useMemo(() => {
-    const loweredQuery = query.trim().toLowerCase();
+    if (statusFilter === "inactivos") {
+      return services.filter((service) => !service.activo);
+    }
 
-    return services.filter((service) => {
-      const matchesQuery =
-        loweredQuery.length === 0 ||
-        service.nombre.toLowerCase().includes(loweredQuery) ||
-        service.descripcion.toLowerCase().includes(loweredQuery);
+    if (statusFilter === "activos") {
+      return services.filter((service) => service.activo);
+    }
 
-      const matchesStatus =
-        statusFilter === "todos" ||
-        (statusFilter === "activos" && service.activo) ||
-        (statusFilter === "inactivos" && !service.activo);
-
-      return matchesQuery && matchesStatus;
-    });
-  }, [query, services, statusFilter]);
+    return services;
+  }, [services, statusFilter]);
 
   return (
     <IonPage>

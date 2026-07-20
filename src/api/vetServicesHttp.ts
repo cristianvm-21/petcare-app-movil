@@ -1,45 +1,58 @@
-/* => Aquí solo haces la petición HTTP al backend. */
 import { springbootApi } from "./axiosHttp";
 import { PageRequest } from "../contracts/pageRequestContract";
 import {
-    CreateVetServiceRequest,
-    UpdateVetServiceRequest,
-    VetServiceItem,
-    VetServiceResponse,
+  CreateVetServiceRequest,
+  GetVetServicesFilters,
+  UpdateVetServiceRequest,
+  VetServiceApiItem,
+  VetServiceResponse,
 } from "../contracts/vetServiceContract";
 
-const VetServicePageRequest: PageRequest = {
-    page: 0,
-    size: 100,
+const vetServicePageRequest: PageRequest = {
+  page: 0,
+  size: 100,
 };
 
-export async function httpGetVetServicesAPI() {
-    const response = await springbootApi.get<VetServiceResponse>("servicios", {
-        params: VetServicePageRequest,
-    });
-    return response.data;
+type GetVetServicesParams = Partial<PageRequest> & GetVetServicesFilters;
+
+export async function httpGetVetServicesAPI(params?: GetVetServicesParams) {
+  const response = await springbootApi.get<VetServiceResponse>("servicios", {
+    params: {
+      ...vetServicePageRequest,
+      ...params,
+    },
+  });
+  return response.data;
+}
+
+export async function httpGetVetServiceByIdAPI(id: number) {
+  const response = await springbootApi.get<VetServiceApiItem>(`servicios/${id}`);
+  return response.data;
 }
 
 export async function httpPostVetServiceAPI(
-    payload: CreateVetServiceRequest,
+  payload: CreateVetServiceRequest,
 ) {
-    const response = await springbootApi.post<VetServiceItem>("servicios", payload);
-    return response.data;
+  const response = await springbootApi.post<VetServiceApiItem>("servicios", payload);
+  return response.data;
 }
 
 export async function httpPutVetServiceAPI(
-    id: number,
-    payload: UpdateVetServiceRequest,
+  id: number,
+  payload: UpdateVetServiceRequest,
 ) {
-    const response = await springbootApi.put<VetServiceItem>(`servicios/${id}`, payload);
-    return response.data;
+  const response = await springbootApi.put<VetServiceApiItem>(
+    `servicios/${id}`,
+    payload,
+  );
+  return response.data;
 }
 
 export async function httpPatchVetServiceAPI(id: number) {
-    const response = await springbootApi.patch<VetServiceItem>(`servicios/${id}/toggle`);
-    return response.data;
+  const response = await springbootApi.patch<VetServiceApiItem>(`servicios/${id}/toggle`);
+  return response.data;
 }
 
 export async function httpDeleteVetServiceAPI(id: number) {
-    await springbootApi.delete(`servicios/${id}`);
+  await springbootApi.delete(`servicios/${id}`);
 }
