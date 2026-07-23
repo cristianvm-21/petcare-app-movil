@@ -1,6 +1,6 @@
 export type TriageUrgencyLevel =
   | "RUTINARIA"
-  | "PRIORITARIA"
+  | "PREFERENTE"
   | "URGENTE"
   | "EMERGENCIA";
 
@@ -26,10 +26,10 @@ export interface CreateTriageRequest {
   urgencyLevel: TriageUrgencyLevel | string;
   visibleSigns: string;
   observations: string;
-  weight: number;
-  temperature: number;
-  heartRate: number;
-  respiratoryRate: number;
+  weight?: number;
+  temperature?: number;
+  heartRate?: number;
+  respiratoryRate?: number;
 }
 
 export interface TriagePageInfo {

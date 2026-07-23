@@ -15,12 +15,14 @@ import { Redirect, Route, useHistory, useLocation } from "react-router-dom";
 import { getCurrentUserRole } from "../auth/session";
 import { getDefaultPrivateRoute, getTabsForRole, privateRoutes } from "../navigation/privateRoutes";
 import Appointments from "../pages/appointments/Appointments";
+import ClinicalAttention from "../pages/clinicalAttention/ClinicalAttention";
 import Home from "../pages/home/Home";
 import Owners from "../pages/owners/Owners";
 import Pets from "../pages/pets/Pets";
 import Triage from "../pages/triage/Triage";
 import Users from "../pages/users/Users";
 import Services from "../pages/VetServices/VetServices";
+import WaitingRoom from "../pages/waitingRoom/WaitingRoom";
 import SectionPlaceholder from "../pages/shared/SectionPlaceholder";
 import "./AppTabs.css";
 
@@ -91,6 +93,10 @@ const AppTabs: React.FC = () => {
                   <Appointments />
                 ) : route.key === "triage" ? (
                   <Triage />
+                ) : route.key === "clinical-attention" ? (
+                  <ClinicalAttention />
+                ) : route.key === "waiting-room" ? (
+                  <WaitingRoom />
                 ) : route.key === "services" ? (
                   <Services />
                 ) : route.key === "users" ? (
