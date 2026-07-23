@@ -20,14 +20,16 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AppHeader from "../../components/AppHeader/AppHeader";
 import {
+  AppointmentItem,
+} from "../../contracts/appointmentContract";
+import {
   CreateTriageRequest,
   TriageItem,
   TriageUrgencyLevel,
 } from "../../contracts/triageContract";
-import { AppointmentItem } from "../../contracts/appointmentContract";
 import { PetItem } from "../../contracts/petContract";
-import { UserItem } from "../../contracts/userContract";
 import { VetServiceItem } from "../../contracts/vetServiceContract";
+import { WaitingRoomItem } from "../../contracts/waitingRoomContract";
 import {
   createTriage,
   findAllTriages,
@@ -37,8 +39,8 @@ import {
 } from "../../services/triageService";
 import { findAllAppointments } from "../../services/appointmentService";
 import { findAllPets } from "../../services/petService";
-import { findUsersByFilters } from "../../services/userService";
 import { findAllVetServices } from "../../services/vetCatalogService";
+import { findWaitingRoomEntries } from "../../services/waitingRoomService";
 import "./Triage.css";
 
 const initialFormData: CreateTriageRequest = {
@@ -47,15 +49,11 @@ const initialFormData: CreateTriageRequest = {
   urgencyLevel: "",
   visibleSigns: "",
   observations: "",
-  weight: 0,
-  temperature: 0,
-  heartRate: 0,
-  respiratoryRate: 0,
 };
 
 const urgencyOptions: TriageUrgencyLevel[] = [
   "RUTINARIA",
-  "PRIORITARIA",
+  "PREFERENTE",
   "URGENTE",
   "EMERGENCIA",
 ];
@@ -104,14 +102,8 @@ function getAppointmentLabel(
   return `${serviceName} · ${formatDateTime(appointment.fechaHora)}`;
 }
 
-function getAssistantName(assistantId: number, assistants: UserItem[]) {
-  const assistant = assistants.find((item) => item.id === assistantId);
-
-  if (!assistant) {
-    return `Asistente #${assistantId}`;
-  }
-
-  return `${assistant.firstName} ${assistant.lastName}`.trim() || assistant.email;
+function getAssistantName(assistantId: number) {
+  return assistantId > 0 ? `Asistente #${assistantId}` : "Sin registro";
 }
 
 function getUrgencyClass(level: string) {
@@ -120,11 +112,54 @@ function getUrgencyClass(level: string) {
       return "triage-status triage-status--emergency";
     case "URGENTE":
       return "triage-status triage-status--urgent";
-    case "PRIORITARIA":
+    case "PREFERENTE":
       return "triage-status triage-status--priority";
     default:
       return "triage-status triage-status--routine";
   }
+}
+
+function getDateKeyInTimeZone(value: Date | string, timeZone: string) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(date);
+}
+
+function isAppointmentForTodayInLima(value: string) {
+  const appointmentDateKey = getDateKeyInTimeZone(value, "America/Lima");
+  const todayDateKey = getDateKeyInTimeZone(new Date(), "America/Lima");
+
+  return Boolean(appointmentDateKey && appointmentDateKey === todayDateKey);
+}
+
+function parseOptionalNumber(value: string | number | null | undefined) {
+  const normalizedValue = String(value ?? "").trim();
+
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  const parsedValue = Number(normalizedValue);
+  return Number.isNaN(parsedValue) ? undefined : parsedValue;
+}
+
+function isEligibleAppointmentStatus(status: string) {
+  return ["AGENDADA", "CONFIRMADA", "REPROGRAMADA"].includes(status);
+}
+
+function isEligibleWaitingRoomStatus(status: string) {
+  return ["PENDIENTE"].includes(status);
 }
 
 function getTriageErrorMessage(error: unknown, fallback: string) {
@@ -132,13 +167,41 @@ function getTriageErrorMessage(error: unknown, fallback: string) {
     return fallback;
   }
 
+  const responseData = error.response?.data;
   const backendMessage =
-    (typeof error.response?.data === "object" &&
-      error.response?.data !== null &&
-      "message" in error.response.data &&
-      typeof error.response.data.message === "string" &&
-      error.response.data.message) ||
-    (typeof error.response?.data === "string" ? error.response.data : "");
+    (typeof responseData === "object" &&
+      responseData !== null &&
+      "message" in responseData &&
+      typeof responseData.message === "string" &&
+      responseData.message) ||
+    (typeof responseData === "object" &&
+      responseData !== null &&
+      "detail" in responseData &&
+      typeof responseData.detail === "string" &&
+      responseData.detail) ||
+    (typeof responseData === "object" &&
+      responseData !== null &&
+      "error" in responseData &&
+      typeof responseData.error === "string" &&
+      responseData.error) ||
+    (typeof responseData === "object" &&
+      responseData !== null &&
+      "errors" in responseData &&
+      Array.isArray(responseData.errors) &&
+      responseData.errors
+        .map((item: unknown) =>
+          typeof item === "string"
+            ? item
+            : typeof item === "object" &&
+                item !== null &&
+                "message" in item &&
+                typeof item.message === "string"
+              ? item.message
+              : "",
+        )
+        .filter(Boolean)
+        .join(". ")) ||
+    (typeof responseData === "string" ? responseData : "");
 
   if (error.response?.status === 400) {
     return backendMessage || "Los datos del triaje no son válidos.";
@@ -153,10 +216,11 @@ function getTriageErrorMessage(error: unknown, fallback: string) {
 
 const Triage: React.FC = () => {
   const [triages, setTriages] = useState<TriageItem[]>([]);
+  const [allTriages, setAllTriages] = useState<TriageItem[]>([]);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [pets, setPets] = useState<PetItem[]>([]);
   const [services, setServices] = useState<VetServiceItem[]>([]);
-  const [assistants, setAssistants] = useState<UserItem[]>([]);
+  const [waitingRoomEntries, setWaitingRoomEntries] = useState<WaitingRoomItem[]>([]);
   const [query, setQuery] = useState("");
   const [urgencyFilter, setUrgencyFilter] = useState("todos");
   const [appointmentFilter, setAppointmentFilter] = useState("0");
@@ -175,23 +239,25 @@ const Triage: React.FC = () => {
     try {
       setIsDependenciesLoading(true);
 
-      const [appointmentsData, petsData, servicesData, assistantsData] = await Promise.all([
+      const [
+        appointmentsData,
+        petsData,
+        servicesData,
+        waitingRoomData,
+      ] = await Promise.all([
         findAllAppointments(),
         findAllPets(),
         findAllVetServices(),
-        findUsersByFilters({
-          soloActivos: true,
-          rol: "ASISTENTE",
-        }),
+        findWaitingRoomEntries(),
       ]);
 
       setAppointments(appointmentsData);
       setPets(petsData);
       setServices(servicesData);
-      setAssistants(assistantsData);
+      setWaitingRoomEntries(waitingRoomData);
     } catch (err) {
       console.error("No se pudieron cargar las dependencias de triaje:", err);
-      setError("No se pudieron cargar citas o asistentes.");
+      setError("No se pudieron cargar las dependencias principales de triaje.");
     } finally {
       setIsDependenciesLoading(false);
     }
@@ -221,6 +287,15 @@ const Triage: React.FC = () => {
     }
   }
 
+  async function loadAllTriagesForValidation() {
+    try {
+      const triageData = await findAllTriages();
+      setAllTriages(triageData);
+    } catch (err) {
+      console.error("No se pudieron cargar todos los triajes para validacion:", err);
+    }
+  }
+
   useEffect(() => {
     void loadDependencies();
   }, []);
@@ -228,6 +303,10 @@ const Triage: React.FC = () => {
   useEffect(() => {
     void loadTriages();
   }, [urgencyFilter, appointmentFilter]);
+
+  useEffect(() => {
+    void loadAllTriagesForValidation();
+  }, []);
 
   useEffect(() => {
     if (!selectedTriage && !isDetailLoading) {
@@ -260,26 +339,99 @@ const Triage: React.FC = () => {
     setIsFormVisible(false);
   }
 
+  const triagedAppointmentIds = useMemo(
+    () => new Set(allTriages.map((triage) => triage.appointmentId)),
+    [allTriages],
+  );
+
+  const availableWaitingRoomEntries = useMemo(
+    () =>
+      waitingRoomEntries.filter((entry) => {
+        const appointment = appointments.find(
+          (appointmentItem) => appointmentItem.id === entry.appointmentId,
+        );
+
+        if (!appointment) {
+          return false;
+        }
+
+        return (
+          !triagedAppointmentIds.has(entry.appointmentId) &&
+          isEligibleWaitingRoomStatus(entry.status) &&
+          isAppointmentForTodayInLima(appointment.fechaHora) &&
+          isEligibleAppointmentStatus(appointment.estado)
+        );
+      }),
+    [appointments, triagedAppointmentIds, waitingRoomEntries],
+  );
+
+  const availableAppointments = useMemo(
+    () =>
+      availableWaitingRoomEntries
+        .map((entry) =>
+          appointments.find(
+            (appointment) => appointment.id === entry.appointmentId,
+          ),
+        )
+        .filter((appointment): appointment is AppointmentItem => Boolean(appointment)),
+    [appointments, availableWaitingRoomEntries],
+  );
+
+  const waitingRoomByAppointmentId = useMemo(
+    () =>
+      new Map(
+        waitingRoomEntries.map((entry) => [entry.appointmentId, entry] as const),
+      ),
+    [waitingRoomEntries],
+  );
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (
       formData.appointmentId <= 0 ||
       !formData.reasonForVisit.trim() ||
-      !formData.urgencyLevel.trim() ||
-      !formData.visibleSigns.trim() ||
-      !formData.observations.trim()
+      !formData.urgencyLevel.trim()
     ) {
-      setFormError("Completa la cita y los campos principales del triaje.");
+      setFormError("Completa la cita, el motivo de visita y la urgencia.");
       return;
     }
 
-    const existingTriage = triages.find(
+    const existingTriage = allTriages.find(
       (triage) => triage.appointmentId === formData.appointmentId,
     );
 
     if (existingTriage) {
       setFormError("La cita seleccionada ya tiene un triaje registrado.");
+      return;
+    }
+
+    const selectedAppointment = appointments.find(
+      (appointment) => appointment.id === formData.appointmentId,
+    );
+    const waitingRoomEntry = waitingRoomByAppointmentId.get(formData.appointmentId);
+
+    if (
+      !selectedAppointment ||
+      !isAppointmentForTodayInLima(selectedAppointment.fechaHora)
+    ) {
+      setFormError(
+        "Solo puedes registrar triajes para citas del día actual en America/Lima.",
+      );
+      return;
+    }
+
+    if (!waitingRoomEntry || !isEligibleWaitingRoomStatus(waitingRoomEntry.status)) {
+      setFormError(
+        "La cita debe estar registrada en sala de espera y en estado PENDIENTE.",
+      );
+      return;
+    }
+
+    if (!isEligibleAppointmentStatus(selectedAppointment.estado)) {
+      setFormError(
+        "La cita seleccionada no está en un estado válido para registrar triaje.",
+      );
       return;
     }
 
@@ -290,6 +442,9 @@ const Triage: React.FC = () => {
       await createTriage(formData);
       resetForm();
       await loadTriages();
+      await loadAllTriagesForValidation();
+      const waitingRoomData = await findWaitingRoomEntries();
+      setWaitingRoomEntries(waitingRoomData);
     } catch (err) {
       console.error("No se pudo registrar el triaje:", err);
       setFormError(
@@ -406,7 +561,9 @@ const Triage: React.FC = () => {
                     placeholder={
                       isDependenciesLoading
                         ? "Cargando citas..."
-                        : "Selecciona una cita"
+                        : availableAppointments.length > 0
+                          ? "Selecciona una cita"
+                          : "No hay ingresos disponibles para triaje"
                     }
                     onIonChange={(event) =>
                       updateField(
@@ -415,7 +572,7 @@ const Triage: React.FC = () => {
                       )
                     }
                   >
-                    {appointments.map((appointment) => (
+                    {availableAppointments.map((appointment) => (
                       <IonSelectOption
                         key={appointment.id}
                         value={appointment.id}
@@ -464,11 +621,11 @@ const Triage: React.FC = () => {
                     label="Peso (kg)"
                     labelPlacement="stacked"
                     type="number"
-                    value={String(formData.weight || "")}
+                    value={String(formData.weight ?? "")}
                     onIonInput={(event) =>
                       updateField(
                         "weight",
-                        Number(event.detail.value ?? 0),
+                        parseOptionalNumber(event.detail.value),
                       )
                     }
                   />
@@ -479,11 +636,11 @@ const Triage: React.FC = () => {
                     label="Temperatura (°C)"
                     labelPlacement="stacked"
                     type="number"
-                    value={String(formData.temperature || "")}
+                    value={String(formData.temperature ?? "")}
                     onIonInput={(event) =>
                       updateField(
                         "temperature",
-                        Number(event.detail.value ?? 0),
+                        parseOptionalNumber(event.detail.value),
                       )
                     }
                   />
@@ -494,11 +651,11 @@ const Triage: React.FC = () => {
                     label="Frecuencia cardiaca"
                     labelPlacement="stacked"
                     type="number"
-                    value={String(formData.heartRate || "")}
+                    value={String(formData.heartRate ?? "")}
                     onIonInput={(event) =>
                       updateField(
                         "heartRate",
-                        Number(event.detail.value ?? 0),
+                        parseOptionalNumber(event.detail.value),
                       )
                     }
                   />
@@ -509,11 +666,11 @@ const Triage: React.FC = () => {
                     label="Frecuencia respiratoria"
                     labelPlacement="stacked"
                     type="number"
-                    value={String(formData.respiratoryRate || "")}
+                    value={String(formData.respiratoryRate ?? "")}
                     onIonInput={(event) =>
                       updateField(
                         "respiratoryRate",
-                        Number(event.detail.value ?? 0),
+                        parseOptionalNumber(event.detail.value),
                       )
                     }
                   />
@@ -548,6 +705,17 @@ const Triage: React.FC = () => {
                     <p className="triage-feedback">{formError}</p>
                   </IonText>
                 )}
+
+                {!isDependenciesLoading && availableAppointments.length === 0 ? (
+                  <IonText color="medium">
+                    <p className="triage-feedback">
+                      No hay ingresos elegibles para triaje. La cita debe estar en
+                      sala de espera del día actual, con estado PENDIENTE, no tener
+                      un triaje previo y además estar AGENDADA, CONFIRMADA o
+                      REPROGRAMADA.
+                    </p>
+                  </IonText>
+                ) : null}
 
                 <div className="triage-form__actions">
                   <IonButton fill="outline" type="button" onClick={resetForm}>
@@ -811,9 +979,7 @@ const Triage: React.FC = () => {
                   </div>
                   <div className="triage-detail-item">
                     <span>Registrado por</span>
-                    <strong>
-                      {getAssistantName(selectedTriage.assistantId, assistants)}
-                    </strong>
+                    <strong>{getAssistantName(selectedTriage.assistantId)}</strong>
                   </div>
                   <div className="triage-detail-item">
                     <span>Creado</span>

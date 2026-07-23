@@ -3,7 +3,8 @@ import { PageRequest } from "../contracts/pageRequestContract";
 import {
   CreateWaitingRoomRequest,
   UpdateWaitingRoomStatusRequest,
-  WaitingRoomItem,
+  WaitingRoomApiItem,
+  WaitingRoomResponse,
 } from "../contracts/waitingRoomContract";
 
 const waitingRoomPageRequest: PageRequest = {
@@ -12,7 +13,7 @@ const waitingRoomPageRequest: PageRequest = {
 };
 
 export async function httpGetWaitingRoomAPI() {
-  const response = await springbootApi.get<{ content: WaitingRoomItem[] }>(
+  const response = await springbootApi.get<WaitingRoomResponse>(
     "sala-espera",
     {
       params: waitingRoomPageRequest,
@@ -22,7 +23,7 @@ export async function httpGetWaitingRoomAPI() {
 }
 
 export async function httpGetWaitingRoomByStatusAPI(status: string) {
-  const response = await springbootApi.get<{ content: WaitingRoomItem[] }>(
+  const response = await springbootApi.get<WaitingRoomResponse>(
     `sala-espera/estado/${status}`,
     {
       params: waitingRoomPageRequest,
@@ -34,7 +35,7 @@ export async function httpGetWaitingRoomByStatusAPI(status: string) {
 export async function httpPostWaitingRoomAPI(
   payload: CreateWaitingRoomRequest,
 ) {
-  const response = await springbootApi.post<WaitingRoomItem>(
+  const response = await springbootApi.post<WaitingRoomApiItem>(
     "sala-espera",
     payload,
   );
@@ -45,7 +46,7 @@ export async function httpPatchWaitingRoomStatusAPI(
   id: number,
   payload: UpdateWaitingRoomStatusRequest,
 ) {
-  const response = await springbootApi.patch<WaitingRoomItem>(
+  const response = await springbootApi.patch<WaitingRoomApiItem>(
     `sala-espera/${id}/estado`,
     payload,
   );

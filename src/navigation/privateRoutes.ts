@@ -1,7 +1,9 @@
 import {
+  fitnessOutline,
   calendarOutline,
   clipboardOutline,
   homeOutline,
+  hourglassOutline,
   medkitOutline,
   pawOutline,
   peopleOutline,
@@ -60,12 +62,32 @@ export const privateRoutes: PrivateRouteConfig[] = [
     showInTab: true,
   },
   {
+    key: "waiting-room",
+    path: "/app/sala-espera",
+    label: "Sala de Espera",
+    title: "Sala de Espera",
+    description: "Gestión de llegada y flujo previo al triaje.",
+    icon: hourglassOutline,
+    roles: ["ADMINISTRADOR", "VETERINARIO", "ASISTENTE"],
+    showInTab: true,
+  },
+  {
     key: "triage",
     path: "/app/triaje",
     label: "Triaje",
     title: "Triaje",
     description: "Evaluación clínica inicial y priorización del paciente.",
     icon: pulseOutline,
+    roles: ["ADMINISTRADOR", "VETERINARIO"],
+    showInTab: true,
+  },
+  {
+    key: "clinical-attention",
+    path: "/app/atenciones-clinicas",
+    label: "Atención Clínica",
+    title: "Atención Clínica",
+    description: "Registro clínico final con diagnóstico y tratamiento.",
+    icon: fitnessOutline,
     roles: ["ADMINISTRADOR", "VETERINARIO"],
     showInTab: true,
   },
@@ -136,9 +158,12 @@ export function getTabsForRole(role: UserRole | null) {
     return [];
   }
 
-  return privateRoutes.filter(
-    (route) => route.showInTab && route.roles.includes(role),
-  );
+  return privateRoutes.filter((route) => {
+    if (!route.showInTab || !route.roles.includes(role)) {
+      return false;
+    }
+    return true;
+  });
 }
 
 export function getDefaultPrivateRoute(role: UserRole | null) {
